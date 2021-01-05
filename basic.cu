@@ -813,18 +813,8 @@ int main(int argc, char **argv)
 	kid[6]=SPMV_CSRscalar;
 	kid[7]=RCONV; // Ojo: en profiling se procesa tambien CCONV
 	kid[8]=HST256;
-	
-
-	kid[0] = kid_from_name(argv[1]);
-	kid[1] = GCEDD;
 
 	//online_profiler_overhead(kid, 7/*num_kernels*/, 2); // SPMV y RCONV dan problemas por 
-	all_profiling(kid, 2/*num_kernels*/, 2);
-
-	kid[1] = MM;
-	all_profiling(kid, 2/*num_kernels*/, 2);
-
-	kid[1] = PF;
 	all_profiling(kid, 2/*num_kernels*/, 2);
 
 	

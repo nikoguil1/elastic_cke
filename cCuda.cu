@@ -356,7 +356,7 @@ int launch_two_kernels(t_kernel_stub **kstub)
 }
 
 
-#define NUM_RUNS 32
+#define NUM_RUNS 1
 
 // Like  cCuda code but better: two streams, no sychronization but allowing slices with more that one cta per SM 
 int launch_improved_cCuda(t_kernel_stub **kstub, int max_ctas[2])
@@ -482,17 +482,17 @@ int launch_improved_cCuda(t_kernel_stub **kstub, int max_ctas[2])
             
         clock_gettime(CLOCK_REALTIME, &now1);
         k0->launchSLCkernel((void *)k0);
-        cudaDeviceSynchronize();
+        //cudaDeviceSynchronize();
         k1->launchSLCkernel((void *)k1);
         cudaDeviceSynchronize();
         clock_gettime(CLOCK_REALTIME, &now2);
         init_time = (double)now1.tv_sec+(double)now1.tv_nsec*1e-9;
         curr_time = (double)now2.tv_sec+(double)now2.tv_nsec*1e-9;
         double seq_time =  curr_time - init_time;
-        //char name[2][20];
-        //kid_from_index(k0->id, name[0]);
-        //kid_from_index(k1->id, name[1]);
-        //printf("%s/%s, %d/%d, %.3f, %.3f, %.2f\n", name[shortest_kernel], name[(shortest_kernel+ 1) % 2], pi0, pi1, coexec_time * 1000, seq_time * 1000, seq_time/coexec_time);
+        char name[2][20];
+        kid_from_index(k0->id, name[0]);
+        kid_from_index(k1->id, name[1]);
+        printf("%s/%s, %d/%d, %.3f, %.3f, %.2f\n", name[shortest_kernel], name[(shortest_kernel+ 1) % 2], pi0, pi1, coexec_time * 1000, seq_time * 1000, seq_time/coexec_time);
         speedup[iter][pi0] = seq_time/coexec_time;
     }
     }
