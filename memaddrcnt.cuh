@@ -53,7 +53,7 @@ __device__ T __broadcast(T t, int fromWhom)
   #pragma unroll
   for (int i = 0; i < sizeof(T); i++) {
     int32_t shfl = (int32_t)p.shflVals[i];
-    p.shflVals[i] = __shfl(shfl, fromWhom);
+    p.shflVals[i] = __shfl_sync(0xffffffff, shfl, fromWhom);
   }
   return p.t;
 }
@@ -64,7 +64,7 @@ __device__ __inline__ int get_unique_lines( intptr_t addrAsInt, int *numUniqueAd
 	// Shift off the offset bits into the cache line.
 	intptr_t lineAddr = addrAsInt >> OFFSET_BITS;
 
-    int workset = __ballot(1);
+    int workset = __ballot_sync(0xffffffff, 1);
 	int firstActive = __ffs(workset) - 1;
 	int numActive = __popc(workset);
 	while (workset) 
@@ -72,7 +72,7 @@ __device__ __inline__ int get_unique_lines( intptr_t addrAsInt, int *numUniqueAd
         // Elect a leader, get its line, see who all matches it.
         int leader = __ffs(workset) - 1;
         intptr_t leadersAddr = __broadcast<intptr_t>(lineAddr, leader);
-        int notMatchesLeader = __ballot(leadersAddr != lineAddr);
+        int notMatchesLeader = __ballot_sync(0xffffffff, leadersAddr != lineAddr);
 
         // We have accounted for all values that match the leader's.
         // Let's remove them all from the workset.
@@ -98,7 +98,7 @@ __device__ __inline__ int get_conflicting_banks( intptr_t addrAsInt, int *numUni
 
 	int conflicts = 0;
 	intptr_t bankAddr = (addrAsInt >> 2) & 0x0FF;
-    int workset = __ballot(1);
+    int workset = __ballot_sync(0xffffffff, 1);
 	int firstActive = __ffs(workset) - 1;
 
 	int numActive = __popc(workset);
@@ -107,7 +107,7 @@ __device__ __inline__ int get_conflicting_banks( intptr_t addrAsInt, int *numUni
         // Elect a leader, get its bank, see who all matches it.
         int leader = __ffs(workset) - 1;
         intptr_t leadersAddr = __broadcast<intptr_t>(bankAddr, leader);
-        int notMatchesLeader = __ballot(leadersAddr != bankAddr);
+        int notMatchesLeader = __ballot_sync(0xffffffff, leadersAddr != bankAddr);
 		//int numConflicts = __popc(MatchesLeader);
         conflicts++;// =(numConflicts-1);
 

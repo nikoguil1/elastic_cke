@@ -85,7 +85,7 @@ reduce(float *g_idata, float *g_odata, unsigned int n)
 		// Reduce final warp using shuffle
 		for (int offset = warpSize/2; offset > 0; offset /= 2) 
 		{
-			mySum += __shfl_down(mySum, offset);
+			mySum += __shfl_down_sync(0xffffffff, mySum, offset);
 		}
 	}
 #else
@@ -199,7 +199,7 @@ slicing_reduce(float *g_idata, float *g_odata, unsigned int n, int gridDimX, int
 		// Reduce final warp using shuffle
 		for (int offset = warpSize/2; offset > 0; offset /= 2) 
 		{
-			mySum += __shfl_down(mySum, offset);
+			mySum += __shfl_down_sync(0xffffffff, mySum, offset);
 		}
 	}
 #else
@@ -370,7 +370,7 @@ profiling_reduce_kernel(float *g_idata, float *g_odata, unsigned int n,
 			// Reduce final warp using shuffle
 			for (int offset = warpSize/2; offset > 0; offset /= 2) 
 			{
-				mySum += __shfl_down(mySum, offset);
+				mySum += __shfl_down_sync(0xffffffff, mySum, offset);
 			}
 		}
 	#else
@@ -520,7 +520,7 @@ preemp_SMT_reduce_kernel(float *g_idata, float *g_odata, unsigned int n,
 			// Reduce final warp using shuffle
 			for (int offset = warpSize/2; offset > 0; offset /= 2) 
 			{
-				mySum += __shfl_down(mySum, offset);
+				mySum += __shfl_down_sync(0xffffffff, mySum, offset);
 			}
 		}
 	#else
@@ -715,7 +715,7 @@ memaddr_preemp_SMT_reduce_kernel(float *g_idata, float *g_odata, unsigned int n,
 			// Reduce final warp using shuffle
 			for (int offset = warpSize/2; offset > 0; offset /= 2) 
 			{
-				mySum += __shfl_down(mySum, offset);
+				mySum += __shfl_down_sync(0xffffffff, mySum, offset);
 			}
 		}
 	#else
@@ -913,7 +913,7 @@ preemp_SMK_reduce_kernel(float *g_idata, float *g_odata, unsigned int n,
 			// Reduce final warp using shuffle
 			for (int offset = warpSize/2; offset > 0; offset /= 2) 
 			{
-				mySum += __shfl_down(mySum, offset);
+				mySum += __shfl_down_sync(0xffffffff, mySum, offset);
 			}
 		}
 	#else
