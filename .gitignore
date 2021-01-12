@@ -1,2 +1,9 @@
 *\.o
 basic
+cCuda
+cCuda_classifier
+mps_test
+occ_calc
+prof_conc
+prof_conc_sincupti
+solo_exec
