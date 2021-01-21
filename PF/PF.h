@@ -30,3 +30,6 @@ int PF_end_kernel(void *arg);
 
 int PF_start_mallocs(void *arg);
 int PF_start_transfers(void *arg);
+
+__global__ void
+original_pathFinderCUDA(int pyramid_heightPF, int *gpuWall, int *gpuSrc, int *gpuResults, int cols,  int rows, int startStep, int border);

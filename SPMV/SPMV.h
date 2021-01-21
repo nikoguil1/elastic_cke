@@ -18,3 +18,9 @@ int SPMVcsr_start_kernel(void *arg);
 int SPMVcsr_end_kernel(void *arg);
 int SPMVcsr_start_transfers(void *arg);
 int SPMVcsr_start_mallocs(void *arg);
+
+__global__ void
+original_spmv_csr_scalar_kernel(const float * __restrict__ val,
+                       const int    * __restrict__ cols,
+                       const int    * __restrict__ rowDelimiters,
+                       const int dim, float * __restrict__ out);

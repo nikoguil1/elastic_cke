@@ -537,6 +537,7 @@ int all_profiling(t_Kernel *kid, int num_kernels, int deviceId)
 		if (kid[i] == GCEDD) total_num_kernels += 3;
 	}
 	
+	printf("Creating stubs\n");
 	/** Create stubs ***/
 	// Ojo la lista de kernels sólo debe ponerse el primero de una aplicacion. Los demás
 	// son creados por el siguiente código
@@ -564,6 +565,7 @@ int all_profiling(t_Kernel *kid, int num_kernels, int deviceId)
 	// make HtD transfers of all kernels
 	make_transfers(kstubs, total_num_kernels);
 	
+	printf("Solo executing\n");
 	// Solo original profiling
 	double *exectime_s = (double *)calloc(total_num_kernels, sizeof(double));
 	for (int i=0; i<total_num_kernels; i++) // Important: is an application has several kernels, they must executed in order (data dependecies)
@@ -788,6 +790,69 @@ int all_profiling(t_Kernel *kid, int num_kernels, int deviceId)
 	return 0;
 }
 	
+void profileFull(t_Kernel kid, int deviceId) {
 
-	
-	
+	cudaError_t err;
+	cudaSetDevice(deviceId);
+	cudaDeviceProp deviceProp;
+	cudaGetDeviceProperties(&deviceProp, deviceId);
+	char kname[100];
+	kid_from_index(kid, kname);
+	printf("Profiling %s on device %s\n", kname, deviceProp.name);
+
+	/** Create commom streams for all kernels: two for asynchronous transfers, one for preemption commands*/
+	cudaStream_t *transfers_s;
+	transfers_s = (cudaStream_t *)calloc(2, sizeof(cudaStream_t));
+
+	for (int i = 0; i < 2; i++)
+	{
+		err = cudaStreamCreate(&transfers_s[i]);
+		checkCudaErrors(err);
+	}
+
+	cudaStream_t preemp_s;
+	checkCudaErrors(cudaStreamCreateWithFlags(&preemp_s, cudaStreamNonBlocking));
+
+	// Create kstbus
+	int cont = 0;
+	t_kernel_stub **kstubs = (t_kernel_stub **)calloc(4, sizeof(t_kernel_stub *)); // Four is the man number of kernels of a app
+	create_stubinfo(&kstubs[cont], deviceId, kid, transfers_s, &preemp_s);
+	cont++;
+
+	if (kid == RCONV)
+	{ // RCONV params struct must be passed to CCONV
+		create_stubinfo_with_params(&kstubs[cont], deviceId, CCONV, transfers_s, &preemp_s, (void *)kstubs[cont - 1]->params);
+		cont++;
+	}
+
+	if (kid == GCEDD)
+	{
+		create_stubinfo_with_params(&kstubs[cont], deviceId, SCEDD, transfers_s, &preemp_s, (void *)kstubs[cont - 1]->params);
+		cont++;
+
+		create_stubinfo_with_params(&kstubs[cont], deviceId, NCEDD, transfers_s, &preemp_s, (void *)kstubs[cont - 2]->params);
+		cont++;
+
+		create_stubinfo_with_params(&kstubs[cont], deviceId, HCEDD, transfers_s, &preemp_s, (void *)kstubs[cont - 3]->params);
+		cont++;
+	}
+
+	// make HtD transfers of all kernels
+	make_transfers(kstubs, cont);
+
+	// Solo original profiling
+
+	double exectime_s[4];
+	struct timespec now;
+	clock_gettime(CLOCK_REALTIME, &now);
+	double time1 = (double)now.tv_sec + (double)now.tv_nsec * 1e-9;
+	for (int i = 0; i < cont; i++)
+	{
+		kstubs[i]->launchORIkernel(kstubs[i]);
+		cudaDeviceSynchronize();
+		clock_gettime(CLOCK_REALTIME, &now);
+		double time2 = (double)now.tv_sec + (double)now.tv_nsec * 1e-9;
+		printf("%s: start=%f end=%f exectime=%f\n", kname, time1, time2, time2 - time1);
+	}
+
+}

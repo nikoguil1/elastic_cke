@@ -98,4 +98,15 @@ int launch_slc_BS(void *arg);
 int BS_start_mallocs(void *arg);
 int BS_start_transfers(void *arg);
 
+__global__ void original_BlackScholesGPU(
+    float *d_CallResult,
+    float *d_PutResult,
+    float *d_StockPrice,
+    float *d_OptionStrike,
+    float *d_OptionYears,
+    float Riskfree,
+    float Volatility,
+    int optN,
+	int iter_per_block);
+
 					

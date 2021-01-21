@@ -381,7 +381,7 @@ int fast_cke_profiling(int deviceId, t_Kernel *kid);
 
 int online_profiler_overhead(t_Kernel *kid, int num_kernels, int deviceId);
 
-
+void profileFull(t_Kernel kid, int deviceId);
 
 #ifdef ZEROCOPY
 int launch_proxy(void *arg);

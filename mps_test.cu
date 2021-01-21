@@ -239,7 +239,7 @@ int main (int argc, char **argv)
 	kid[7]=RCONV; // Ojo: en profiling se procesa tambien CCONV
 	kid[8]=HST256;
 	
-	int num_kernels = 2;
+	int num_kernels = 9;
 	/*for (int i=0; i<num_kernels; i++){
 		total_num_kernels++;
 		if (kid[i] == RCONV) total_num_kernels++;
@@ -324,11 +324,12 @@ int main (int argc, char **argv)
 		cudaError_t err;
 
 		// Select device
-		int deviceId = 2;
+		int deviceId = 0;
+		if ( argc > 1 ) deviceId = atoi(argv[1]);
 		cudaSetDevice(deviceId);
 		cudaDeviceProp deviceProp;
 		cudaGetDeviceProperties(&deviceProp, deviceId);	
-		printf("Device=%s\n", deviceProp.name);
+		printf("Chidl %d working on Device=%s\n", it, deviceProp.name);
 	
 		/** Create commom streams for all kernels: two for asynchronous transfers, one for preemption commands*/
 		cudaStream_t *transfers_s;
@@ -342,7 +343,7 @@ int main (int argc, char **argv)
 		cudaStream_t preemp_s;
 		checkCudaErrors(cudaStreamCreateWithFlags(&preemp_s, cudaStreamNonBlocking)); 
 		
-		printf("Child=%d Creating kstubs\n", it);
+		printf("Child %d creating kstubs for kernel %d\n", it, kid[it]);
 	
 		// Create kstbus
 		int cont = 0;

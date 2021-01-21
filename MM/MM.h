@@ -24,3 +24,6 @@ int MM_end_kernel(void *arg);
 
 int MM_start_mallocs(void *arg);
 int MM_start_transfers(void *arg);
+
+template <int BLOCK_SIZE> __global__ void
+ original_matrixMulCUDA(float *C, float *A, float *B, int wA, int wB, int gridDimX);

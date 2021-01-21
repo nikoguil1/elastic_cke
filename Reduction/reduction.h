@@ -14,3 +14,6 @@ int reduce_start_kernel(void *arg);
 int reduce_end_kernel(void *arg);
 int reduce_start_transfers(void *arg);
 int reduce_start_mallocs(void *arg);
+
+__global__ void
+reduce(float *g_idata, float *g_odata, unsigned int n);

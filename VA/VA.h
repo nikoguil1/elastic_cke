@@ -24,3 +24,6 @@ int launch_slc_VA(void *arg);
 
 int VA_start_mallocs(void *arg);
 int VA_start_transfers(void *arg);
+
+__global__ void
+original_vectorAdd(const float *A, const float *B, float *C, int iter_per_block, int numelements);

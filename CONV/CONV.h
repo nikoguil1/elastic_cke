@@ -40,6 +40,9 @@ int RCONV_end_kernel(void *arg);
 int RCONV_start_mallocs(void *arg);
 int RCONV_start_transfers(void *arg);
 
+__global__ void
+original_rowsConvolutionCUDA(float *d_Dst_p, float *d_Src_p, int imageW, int imageH, int pitch);
+
 //Cols
 int launch_preemp_CCONV(void *kstub);
 int launch_orig_CCONV(void *kstub);
@@ -50,3 +53,6 @@ int CCONV_end_kernel(void *arg);
 
 int CCONV_start_mallocs(void *arg);
 int CCONV_start_transfers(void *arg);
+
+__global__ void
+original_colsConvolutionCUDA(float *d_Dst, float *d_Src, int imageW, int imageH, int pitch);

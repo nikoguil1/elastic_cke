@@ -61,3 +61,7 @@ int HST256_end_kernel(void *arg);
 
 int HST256_start_mallocs(void *arg);
 int HST256_start_transfers(void *arg);
+
+__global__ void
+original_histogram256CUDA(uint *d_PartialHistograms256, uint *d_Data256, uint dataCount, 
+							int warp_count, int histogram256_threadblock_size, int histogram256_threadblock_memory);
