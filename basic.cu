@@ -796,14 +796,15 @@ int main(int argc, char **argv)
 	int num_kernels = 9;
 	t_Kernel kid[13];
 	
-	/*int deviceId = atoi(argv[1]);
-	kid[0] = kid_from_name(argv[2]);
+	int deviceId = atoi(argv[1]);
+	/*kid[0] = kid_from_name(argv[2]);
 	kid[1] = kid_from_name(argv[3]);
 		
 	fast_cke_profiling(deviceId, kid);
 
 	return 0;
  */
+	//kid[0]=VA;
 	kid[0]=VA;
 	kid[1]=MM;
 	kid[2]=BS;
@@ -813,19 +814,15 @@ int main(int argc, char **argv)
 	kid[6]=SPMV_CSRscalar;
 	kid[7]=RCONV; // Ojo: en profiling se procesa tambien CCONV
 	kid[8]=HST256;
-	
-
-	kid[0] = kid_from_name(argv[1]);
-	kid[1] = GCEDD;
 
 	//online_profiler_overhead(kid, 7/*num_kernels*/, 2); // SPMV y RCONV dan problemas por 
-	all_profiling(kid, 2/*num_kernels*/, 2);
+	all_profiling(kid, 2/*num_kernels*/, deviceId);
 
-	kid[1] = MM;
-	all_profiling(kid, 2/*num_kernels*/, 2);
+	//kid[1] = MM;
+	//all_profiling(kid, 2/*num_kernels*/, 2);
 
-	kid[1] = PF;
-	all_profiling(kid, 2/*num_kernels*/, 2);
+	//kid[1] = PF;
+	//all_profiling(kid, 2/*num_kernels*/, 2);
 
 	
 	//smk_check_CTA_allocation(kid, 2, 2);

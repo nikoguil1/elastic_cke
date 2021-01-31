@@ -52,60 +52,68 @@ int l_mem_size;
  */
 __global__ void
 original_gaussianCannyCUDA(unsigned char *data_CEDD, unsigned char *out_CEDD, int rows_CEDD, int cols_CEDD, 
-						int gridDimY)
+						int gridDimY, int iter_per_subtask)
 {
-    extern __shared__ int l_mem[];
-    int* l_data = l_mem;
+	extern __shared__ int l_mem[];
+	int* l_data = l_mem;
 
-    const int L_SIZE = blockDim.x;
-    int sum         = 0; 
-    const int   g_row = blockIdx.y * blockDim.y + threadIdx.y + 1;
-    const int   g_col = blockIdx.x * blockDim.x + threadIdx.x + 1;
-    const int l_row = threadIdx.y + 1;
-    const int l_col = threadIdx.x + 1;
+	const int L_SIZE = blockDim.x;
+	
+	for (int it=0; it < iter_per_subtask; it++){	
+		int sum         = 0;
+	
+		int col = (blockIdx.y * iter_per_subtask + it ) / gridDimY;
+		int row = (blockIdx.x * iter_per_subtask + it ) - col * gridDimY;  
 
-    const int pos = g_row * cols_CEDD + g_col;
+		const int   g_row = col * blockDim.y + threadIdx.y + 1;
+		const int   g_col = row * blockDim.x + threadIdx.x + 1;
+	
+		const int l_row = threadIdx.y + 1;
+		const int l_col = threadIdx.x + 1;
 
-    // copy to local
-    l_data[l_row * (L_SIZE + 2) + l_col] = data_CEDD[pos];
+		const int pos = g_row * cols_CEDD + g_col;
 
-    // top most row
-    if(l_row == 1) {
-        l_data[0 * (L_SIZE + 2) + l_col] = data_CEDD[pos - cols_CEDD];
-        // top left
-        if(l_col == 1)
-            l_data[0 * (L_SIZE + 2) + 0] = data_CEDD[pos - cols_CEDD - 1];
+		// copy to local
+		l_data[l_row * (L_SIZE + 2) + l_col] = data_CEDD[pos];
 
-        // top right
-        else if(l_col == L_SIZE)
-            l_data[0 * (L_SIZE + 2) + L_SIZE + 1] = data_CEDD[pos - cols_CEDD + 1];
-    }
-    // bottom most row
-    else if(l_row == L_SIZE) {
-        l_data[(L_SIZE + 1) * (L_SIZE + 2) + l_col] = data_CEDD[pos + cols_CEDD];
-        // bottom left
-        if(l_col == 1)
-            l_data[(L_SIZE + 1) * (L_SIZE + 2) + 0] = data_CEDD[pos + cols_CEDD - 1];
+		// top most row
+		if(l_row == 1) {
+			l_data[0 * (L_SIZE + 2) + l_col] = data_CEDD[pos - cols_CEDD];
+			// top left
+			if(l_col == 1)
+				l_data[0 * (L_SIZE + 2) + 0] = data_CEDD[pos - cols_CEDD - 1];
 
-        // bottom right
-        else if(l_col == L_SIZE)
-            l_data[(L_SIZE + 1) * (L_SIZE + 2) + L_SIZE + 1] = data_CEDD[pos + cols_CEDD + 1];
-    }
+			// top right
+			else if(l_col == L_SIZE)
+				l_data[0 * (L_SIZE + 2) + L_SIZE + 1] = data_CEDD[pos - cols_CEDD + 1];
+		}
+		// bottom most row
+		else if(l_row == L_SIZE) {
+			l_data[(L_SIZE + 1) * (L_SIZE + 2) + l_col] = data_CEDD[pos + cols_CEDD];
+			// bottom left
+			if(l_col == 1)
+				l_data[(L_SIZE + 1) * (L_SIZE + 2) + 0] = data_CEDD[pos + cols_CEDD - 1];
 
-    if(l_col == 1)
-        l_data[l_row * (L_SIZE + 2) + 0] = data_CEDD[pos - 1];
-    else if(l_col == L_SIZE)
-        l_data[l_row * (L_SIZE + 2) + L_SIZE + 1] = data_CEDD[pos + 1];
+			// bottom right
+			else if(l_col == L_SIZE)
+				l_data[(L_SIZE + 1) * (L_SIZE + 2) + L_SIZE + 1] = data_CEDD[pos + cols_CEDD + 1];
+		}
 
-    __syncthreads();
+		if(l_col == 1)
+			l_data[l_row * (L_SIZE + 2) + 0] = data_CEDD[pos - 1];
+		else if(l_col == L_SIZE)
+			l_data[l_row * (L_SIZE + 2) + L_SIZE + 1] = data_CEDD[pos + 1];
 
-    for(int i = 0; i < 3; i++) {
-        for(int j = 0; j < 3; j++) {
-            sum += gaus[i][j] * l_data[(i + l_row - 1) * (L_SIZE + 2) + j + l_col - 1];
-        }
-    }
+		__syncthreads();
 
-    out_CEDD[pos] = min(255, max(0, sum));
+		for(int i = 0; i < 3; i++) {
+			for(int j = 0; j < 3; j++) {
+				sum += gaus[i][j] * l_data[(i + l_row - 1) * (L_SIZE + 2) + j + l_col - 1];
+			}
+		}
+
+		out_CEDD[pos] = min(255, max(0, sum));
+	}
 }
 
 __global__ void
@@ -697,7 +705,7 @@ int launch_orig_GCEDD(void *arg)
 	
 	original_gaussianCannyCUDA<<<dimGrid, threads, l_mem_size>>>(
 		params->out_CEDD, params->data_CEDD, rows_CEDD, cols_CEDD,
-		params->gridDimY);
+		params->gridDimY, kstub->kconf.coarsening);
 
 	return 0;
 }
@@ -797,7 +805,8 @@ int launch_preemp_GCEDD(void *arg)
  * Sobel Canny (CUDA Kernel)
  */
 __global__ void
-original_sobelCannyCUDA(unsigned char *data_CEDD, unsigned char *out_CEDD, unsigned char *theta_CEDD, int rows_CEDD, int cols_CEDD)
+original_sobelCannyCUDA(unsigned char *data_CEDD, unsigned char *out_CEDD, unsigned char *theta_CEDD, int rows_CEDD, int cols_CEDD,
+						int gridDimY, int iter_per_subtask)
 {
     extern __shared__ int l_mem[];
     int* l_data_CEDD = l_mem;
@@ -806,95 +815,102 @@ original_sobelCannyCUDA(unsigned char *data_CEDD, unsigned char *out_CEDD, unsig
     // is what hypot and atan2 will expect.
     const int L_SIZE = blockDim.x;
     const float PI    = 3.14159265f;
-    const int   g_row = blockIdx.y * blockDim.y + threadIdx.y + 1;
-    const int   g_col = blockIdx.x * blockDim.x + threadIdx.x + 1;
 	
-	const int   l_row = threadIdx.y + 1;
-	const int   l_col = threadIdx.x + 1;
-		
-	if (g_row < rows_CEDD && g_col < cols_CEDD){
+	for (int j = 0; j < iter_per_subtask; j++){	
+			
+		int col = (blockIdx.y * iter_per_subtask + j ) / gridDimY;
+		int row = (blockIdx.x * iter_per_subtask + j ) - col * gridDimY;  
 
-		const int pos = g_row * cols_CEDD + g_col;
+		const int   g_row = col * blockDim.y + threadIdx.y + 1;
+		const int   g_col = row * blockDim.x + threadIdx.x + 1;
+	
+		const int   l_row = threadIdx.y + 1;
+		const int   l_col = threadIdx.x + 1;
+			
+		if (g_row < rows_CEDD && g_col < cols_CEDD){
 
-		// copy to local
-		l_data_CEDD[l_row * (L_SIZE + 2) + l_col] = data_CEDD[pos];
+			const int pos = g_row * cols_CEDD + g_col;
 
-		// top most row
-		if(l_row == 1) {
-			l_data_CEDD[0 * (L_SIZE + 2) + l_col] = data_CEDD[pos - cols_CEDD];
-			// top left
-			if(l_col == 1)
-				l_data_CEDD[0 * (L_SIZE + 2) + 0] = data_CEDD[pos - cols_CEDD - 1];
-			// top right
-			else if(l_col == L_SIZE)
-					l_data_CEDD[0 * (L_SIZE + 2) + (L_SIZE + 1)] = data_CEDD[pos - cols_CEDD + 1];
-			}
-			// bottom most row
-		else if(l_row == L_SIZE) {
-			l_data_CEDD[(L_SIZE + 1) * (L_SIZE + 2) + l_col] = data_CEDD[pos + cols_CEDD];
-			// bottom left
-			if(l_col == 1)
-				l_data_CEDD[(L_SIZE + 1) * (L_SIZE + 2) + 0] = data_CEDD[pos + cols_CEDD - 1];
-					// bottom right
+			// copy to local
+			l_data_CEDD[l_row * (L_SIZE + 2) + l_col] = data_CEDD[pos];
+
+			// top most row
+			if(l_row == 1) {
+				l_data_CEDD[0 * (L_SIZE + 2) + l_col] = data_CEDD[pos - cols_CEDD];
+				// top left
+				if(l_col == 1)
+					l_data_CEDD[0 * (L_SIZE + 2) + 0] = data_CEDD[pos - cols_CEDD - 1];
+				// top right
 				else if(l_col == L_SIZE)
-					l_data_CEDD[(L_SIZE + 1) * (L_SIZE + 2) + (L_SIZE + 1)] = data_CEDD[pos + cols_CEDD + 1];
-		}
-
-		// left
-		if(l_col == 1)
-			l_data_CEDD[l_row * (L_SIZE + 2) + 0] = data_CEDD[pos - 1];
-			// right
-		else if(l_col == L_SIZE)
-			l_data_CEDD[l_row * (L_SIZE + 2) + (L_SIZE + 1)] = data_CEDD[pos + 1];
-	
-			__syncthreads();
-
-		float sumx = 0, sumy = 0, angle = 0;
-		// find x and y derivatives
-		for(int i = 0; i < 3; i++) {
-			for(int j = 0; j < 3; j++) {
-				sumx += sobx[i][j] * l_data_CEDD[(i + l_row - 1) * (L_SIZE + 2) + j + l_col - 1];
-				sumy += soby[i][j] * l_data_CEDD[(i + l_row - 1) * (L_SIZE + 2) + j + l_col - 1];
+						l_data_CEDD[0 * (L_SIZE + 2) + (L_SIZE + 1)] = data_CEDD[pos - cols_CEDD + 1];
+				}
+				// bottom most row
+			else if(l_row == L_SIZE) {
+				l_data_CEDD[(L_SIZE + 1) * (L_SIZE + 2) + l_col] = data_CEDD[pos + cols_CEDD];
+				// bottom left
+				if(l_col == 1)
+					l_data_CEDD[(L_SIZE + 1) * (L_SIZE + 2) + 0] = data_CEDD[pos + cols_CEDD - 1];
+						// bottom right
+					else if(l_col == L_SIZE)
+						l_data_CEDD[(L_SIZE + 1) * (L_SIZE + 2) + (L_SIZE + 1)] = data_CEDD[pos + cols_CEDD + 1];
 			}
+
+			// left
+			if(l_col == 1)
+				l_data_CEDD[l_row * (L_SIZE + 2) + 0] = data_CEDD[pos - 1];
+				// right
+			else if(l_col == L_SIZE)
+				l_data_CEDD[l_row * (L_SIZE + 2) + (L_SIZE + 1)] = data_CEDD[pos + 1];
+		
+				__syncthreads();
+
+			float sumx = 0, sumy = 0, angle = 0;
+			// find x and y derivatives
+			for(int i = 0; i < 3; i++) {
+				for(int j = 0; j < 3; j++) {
+					sumx += sobx[i][j] * l_data_CEDD[(i + l_row - 1) * (L_SIZE + 2) + j + l_col - 1];
+					sumy += soby[i][j] * l_data_CEDD[(i + l_row - 1) * (L_SIZE + 2) + j + l_col - 1];
+				}
+			}
+
+			// The out_CEDDput is now the square root of their squares, but they are
+			// constrained to 0 <= value <= 255. Note that hypot is a built in function
+			// defined as: hypot(x,y) = sqrt(x*x, y*y).
+			out_CEDD[pos] = min(255, max(0, (int)hypot(sumx, sumy)));
+		
+			// Compute the direction angle theta_CEDD in radians
+			// atan2 has a range of (-PI, PI) degrees
+			angle = atan2(sumy, sumx);
+
+			// If the angle is negative,
+			// shift the range to (0, 2PI) by adding 2PI to the angle,
+			// then perform modulo operation of 2PI
+			if(angle < 0) {
+				angle = fmod((angle + 2 * PI), (2 * PI));
+			}
+
+			// Round the angle to one of four possibilities: 0, 45, 90, 135 degrees
+			// then store it in the theta_CEDD buffer at the proper position
+			//theta_CEDD[pos] = ((int)(degrees(angle * (PI/8) + PI/8-0.0001) / 45) * 45) % 180;
+			if(angle <= PI / 8)
+					theta_CEDD[pos] = 0;
+				else if(angle <= 3 * PI / 8)
+					theta_CEDD[pos] = 45;
+				else if(angle <= 5 * PI / 8)
+					theta_CEDD[pos] = 90;
+				else if(angle <= 7 * PI / 8)
+					theta_CEDD[pos] = 135;
+				else if(angle <= 9 * PI / 8)
+					theta_CEDD[pos] = 0;
+				else if(angle <= 11 * PI / 8)
+					theta_CEDD[pos] = 45;
+				else if(angle <= 13 * PI / 8)
+					theta_CEDD[pos] = 90;
+				else if(angle <= 15 * PI / 8)
+					theta_CEDD[pos] = 135;
+				else
+					theta_CEDD[pos] = 0; // (angle <= 16*PI/8)
 		}
-
-		// The out_CEDDput is now the square root of their squares, but they are
-		// constrained to 0 <= value <= 255. Note that hypot is a built in function
-		// defined as: hypot(x,y) = sqrt(x*x, y*y).
-		out_CEDD[pos] = min(255, max(0, (int)hypot(sumx, sumy)));
-	
-		// Compute the direction angle theta_CEDD in radians
-		// atan2 has a range of (-PI, PI) degrees
-		angle = atan2(sumy, sumx);
-
-		// If the angle is negative,
-		// shift the range to (0, 2PI) by adding 2PI to the angle,
-		// then perform modulo operation of 2PI
-		if(angle < 0) {
-			angle = fmod((angle + 2 * PI), (2 * PI));
-		}
-
-		// Round the angle to one of four possibilities: 0, 45, 90, 135 degrees
-		// then store it in the theta_CEDD buffer at the proper position
-		//theta_CEDD[pos] = ((int)(degrees(angle * (PI/8) + PI/8-0.0001) / 45) * 45) % 180;
-		if(angle <= PI / 8)
-				theta_CEDD[pos] = 0;
-			else if(angle <= 3 * PI / 8)
-				theta_CEDD[pos] = 45;
-			else if(angle <= 5 * PI / 8)
-				theta_CEDD[pos] = 90;
-			else if(angle <= 7 * PI / 8)
-				theta_CEDD[pos] = 135;
-			else if(angle <= 9 * PI / 8)
-				theta_CEDD[pos] = 0;
-			else if(angle <= 11 * PI / 8)
-				theta_CEDD[pos] = 45;
-			else if(angle <= 13 * PI / 8)
-				theta_CEDD[pos] = 90;
-			else if(angle <= 15 * PI / 8)
-				theta_CEDD[pos] = 135;
-			else
-				theta_CEDD[pos] = 0; // (angle <= 16*PI/8)
 	}
 }
 
@@ -1563,7 +1579,8 @@ int launch_orig_SCEDD(void *arg)
     dim3 threads(kstub->kconf.blocksize.x, kstub->kconf.blocksize.y);
 	
 	original_sobelCannyCUDA<<<dimGrid, threads, l_mem_size>>>(
-		params->data_CEDD, params->out_CEDD, params->theta_CEDD, rows_CEDD, cols_CEDD);
+		params->data_CEDD, params->out_CEDD, params->theta_CEDD, rows_CEDD, cols_CEDD,
+		params->gridDimY, kstub->kconf.coarsening);
 
 	return 0;
 }
@@ -1640,7 +1657,8 @@ int launch_preemp_SCEDD(void *arg)
  * Non_max_supp Canny (CUDA Kernel)
  */
 __global__ void
-original_nonCannyCUDA(unsigned char *data_CEDD, unsigned char *out_CEDD, unsigned char *theta_CEDD, int rows_CEDD, int cols_CEDD)
+original_nonCannyCUDA(unsigned char *data_CEDD, unsigned char *out_CEDD, unsigned char *theta_CEDD, int rows_CEDD, int cols_CEDD,
+						int gridDimY, int iter_per_subtask)
 {
     extern __shared__ int l_mem[];
     int* l_data = l_mem;
@@ -1648,113 +1666,119 @@ original_nonCannyCUDA(unsigned char *data_CEDD, unsigned char *out_CEDD, unsigne
     // These variables are offset by one to avoid seg. fault errors
     // As such, this kernel ignores the outside ring of pixels
     const int L_SIZE = blockDim.x;
-    const int   g_row = blockIdx.y * blockDim.y + threadIdx.y + 1;
-	const int   g_col = blockIdx.x * blockDim.x + threadIdx.x + 1;
 	
-    const int l_row = threadIdx.y + 1;
-    const int l_col = threadIdx.x + 1;
+	for (int j = 0; j < iter_per_subtask; j++){	
+		int col = (blockIdx.y * iter_per_subtask + j ) / gridDimY;
+		int row = (blockIdx.x * iter_per_subtask + j ) - col * gridDimY;  
 
-    const int pos = g_row * cols_CEDD + g_col;
+		const int   g_row = col * blockDim.y + threadIdx.y + 1;
+		const int   g_col = row * blockDim.x + threadIdx.x + 1;
+	
+		const int l_row = threadIdx.y + 1;
+		const int l_col = threadIdx.x + 1;
 
-    // copy to l_data
-    l_data[l_row * (L_SIZE + 2) + l_col] = data_CEDD[pos];
+		const int pos = g_row * cols_CEDD + g_col;
 
-    // top most row
-    if(l_row == 1) {
-        l_data[0 * (L_SIZE + 2) + l_col] = data_CEDD[pos - cols_CEDD];
-        // top left
-        if(l_col == 1)
-            l_data[0 * (L_SIZE + 2) + 0] = data_CEDD[pos - cols_CEDD - 1];
+		// copy to l_data
+		l_data[l_row * (L_SIZE + 2) + l_col] = data_CEDD[pos];
 
-        // top right
-        else if(l_col == L_SIZE)
-            l_data[0 * (L_SIZE + 2) + (L_SIZE + 1)] = data_CEDD[pos - cols_CEDD + 1];
-    }
-    // bottom most row
-    else if(l_row == L_SIZE) {
-        l_data[(L_SIZE + 1) * (L_SIZE + 2) + l_col] = data_CEDD[pos + cols_CEDD];
-        // bottom left
-        if(l_col == 1)
-            l_data[(L_SIZE + 1) * (L_SIZE + 2) + 0] = data_CEDD[pos + cols_CEDD - 1];
+		// top most row
+		if(l_row == 1) {
+			l_data[0 * (L_SIZE + 2) + l_col] = data_CEDD[pos - cols_CEDD];
+			// top left
+			if(l_col == 1)
+				l_data[0 * (L_SIZE + 2) + 0] = data_CEDD[pos - cols_CEDD - 1];
 
-        // bottom right
-        else if(l_col == L_SIZE)
-            l_data[(L_SIZE + 1) * (L_SIZE + 2) + (L_SIZE + 1)] = data_CEDD[pos + cols_CEDD + 1];
-    }
+			// top right
+			else if(l_col == L_SIZE)
+				l_data[0 * (L_SIZE + 2) + (L_SIZE + 1)] = data_CEDD[pos - cols_CEDD + 1];
+		}
+		// bottom most row
+		else if(l_row == L_SIZE) {
+			l_data[(L_SIZE + 1) * (L_SIZE + 2) + l_col] = data_CEDD[pos + cols_CEDD];
+			// bottom left
+			if(l_col == 1)
+				l_data[(L_SIZE + 1) * (L_SIZE + 2) + 0] = data_CEDD[pos + cols_CEDD - 1];
 
-    if(l_col == 1)
-        l_data[l_row * (L_SIZE + 2) + 0] = data_CEDD[pos - 1];
-    else if(l_col == L_SIZE)
-        l_data[l_row * (L_SIZE + 2) + (L_SIZE + 1)] = data_CEDD[pos + 1];
+			// bottom right
+			else if(l_col == L_SIZE)
+				l_data[(L_SIZE + 1) * (L_SIZE + 2) + (L_SIZE + 1)] = data_CEDD[pos + cols_CEDD + 1];
+		}
 
-    __syncthreads();
+		if(l_col == 1)
+			l_data[l_row * (L_SIZE + 2) + 0] = data_CEDD[pos - 1];
+		else if(l_col == L_SIZE)
+			l_data[l_row * (L_SIZE + 2) + (L_SIZE + 1)] = data_CEDD[pos + 1];
 
-    unsigned char my_magnitude = l_data[l_row * (L_SIZE + 2) + l_col];
+		__syncthreads();
 
-    // The following variables are used to address the matrices more easily
-    switch(theta_CEDD[pos]) {
-    // A gradient angle of 0 degrees = an edge that is North/South
-    // Check neighbors to the East and West
-    case 0:
-        // supress me if my neighbor has larger magnitude
-        if(my_magnitude <= l_data[l_row * (L_SIZE + 2) + l_col + 1] || // east
-            my_magnitude <= l_data[l_row * (L_SIZE + 2) + l_col - 1]) // west
-        {
-            out_CEDD[pos] = 0;
-        }
-        // otherwise, copy my value to the output buffer
-        else {
-            out_CEDD[pos] = my_magnitude;
-        }
-        break;
+		unsigned char my_magnitude = l_data[l_row * (L_SIZE + 2) + l_col];
 
-    // A gradient angle of 45 degrees = an edge that is NW/SE
-    // Check neighbors to the NE and SW
-    case 45:
-        // supress me if my neighbor has larger magnitude
-        if(my_magnitude <= l_data[(l_row - 1) * (L_SIZE + 2) + l_col + 1] || // north east
-            my_magnitude <= l_data[(l_row + 1) * (L_SIZE + 2) + l_col - 1]) // south west
-        {
-            out_CEDD[pos] = 0;
-        }
-        // otherwise, copy my value to the output buffer
-        else {
-            out_CEDD[pos] = my_magnitude;
-        }
-        break;
+		// The following variables are used to address the matrices more easily
+		switch(theta_CEDD[pos]) {
+		// A gradient angle of 0 degrees = an edge that is North/South
+		// Check neighbors to the East and West
+		case 0:
+			// supress me if my neighbor has larger magnitude
+			if(my_magnitude <= l_data[l_row * (L_SIZE + 2) + l_col + 1] || // east
+				my_magnitude <= l_data[l_row * (L_SIZE + 2) + l_col - 1]) // west
+			{
+				out_CEDD[pos] = 0;
+			}
+			// otherwise, copy my value to the output buffer
+			else {
+				out_CEDD[pos] = my_magnitude;
+			}
+			break;
 
-    // A gradient angle of 90 degrees = an edge that is E/W
-    // Check neighbors to the North and South
-    case 90:
-        // supress me if my neighbor has larger magnitude
-        if(my_magnitude <= l_data[(l_row - 1) * (L_SIZE + 2) + l_col] || // north
-            my_magnitude <= l_data[(l_row + 1) * (L_SIZE + 2) + l_col]) // south
-        {
-            out_CEDD[pos] = 0;
-        }
-        // otherwise, copy my value to the output buffer
-        else {
-            out_CEDD[pos] = my_magnitude;
-        }
-        break;
+		// A gradient angle of 45 degrees = an edge that is NW/SE
+		// Check neighbors to the NE and SW
+		case 45:
+			// supress me if my neighbor has larger magnitude
+			if(my_magnitude <= l_data[(l_row - 1) * (L_SIZE + 2) + l_col + 1] || // north east
+				my_magnitude <= l_data[(l_row + 1) * (L_SIZE + 2) + l_col - 1]) // south west
+			{
+				out_CEDD[pos] = 0;
+			}
+			// otherwise, copy my value to the output buffer
+			else {
+				out_CEDD[pos] = my_magnitude;
+			}
+			break;
 
-    // A gradient angle of 135 degrees = an edge that is NE/SW
-    // Check neighbors to the NW and SE
-    case 135:
-        // supress me if my neighbor has larger magnitude
-        if(my_magnitude <= l_data[(l_row - 1) * (L_SIZE + 2) + l_col - 1] || // north west
-            my_magnitude <= l_data[(l_row + 1) * (L_SIZE + 2) + l_col + 1]) // south east
-        {
-            out_CEDD[pos] = 0;
-        }
-        // otherwise, copy my value to the output buffer
-        else {
-            out_CEDD[pos] = my_magnitude;
-        }
-        break;
+		// A gradient angle of 90 degrees = an edge that is E/W
+		// Check neighbors to the North and South
+		case 90:
+			// supress me if my neighbor has larger magnitude
+			if(my_magnitude <= l_data[(l_row - 1) * (L_SIZE + 2) + l_col] || // north
+				my_magnitude <= l_data[(l_row + 1) * (L_SIZE + 2) + l_col]) // south
+			{
+				out_CEDD[pos] = 0;
+			}
+			// otherwise, copy my value to the output buffer
+			else {
+				out_CEDD[pos] = my_magnitude;
+			}
+			break;
 
-    default: out_CEDD[pos] = my_magnitude; break;
-    }
+		// A gradient angle of 135 degrees = an edge that is NE/SW
+		// Check neighbors to the NW and SE
+		case 135:
+			// supress me if my neighbor has larger magnitude
+			if(my_magnitude <= l_data[(l_row - 1) * (L_SIZE + 2) + l_col - 1] || // north west
+				my_magnitude <= l_data[(l_row + 1) * (L_SIZE + 2) + l_col + 1]) // south east
+			{
+				out_CEDD[pos] = 0;
+			}
+			// otherwise, copy my value to the output buffer
+			else {
+				out_CEDD[pos] = my_magnitude;
+			}
+			break;
+
+		default: out_CEDD[pos] = my_magnitude; break;
+		}
+	}
 }
 
 __global__ void
@@ -2504,7 +2528,8 @@ int launch_orig_NCEDD(void *arg)
     dim3 threads(kstub->kconf.blocksize.x, kstub->kconf.blocksize.y);
 	
 	original_nonCannyCUDA<<<dimGrid, threads, l_mem_size>>>(
-		params->out_CEDD, params->data_CEDD, params->theta_CEDD, rows_CEDD, cols_CEDD);
+		params->out_CEDD, params->data_CEDD, params->theta_CEDD, rows_CEDD, cols_CEDD,
+		params->gridDimY, kstub->kconf.coarsening);
 
 	return 0;
 }
@@ -2578,35 +2603,39 @@ int launch_preemp_NCEDD(void *arg)
  * Hyst Canny (CUDA Kernel)
  */
 __global__ void
-original_hystCannyCUDA(unsigned char *data_CEDD, unsigned char *out_CEDD, int rows_CEDD, int cols_CEDD)
+original_hystCannyCUDA(unsigned char *data_CEDD, unsigned char *out_CEDD, int rows_CEDD, int cols_CEDD,
+						int gridDimY, int iter_per_subtask)
 {
     // Establish our high and low thresholds as floats
     float lowThresh  = 10;
     float highThresh = 70;
+	
+	for (int j = 0; j < iter_per_subtask; j++){	
+		int col = (blockIdx.y * iter_per_subtask + j ) / gridDimY;
+		int row = (blockIdx.x * iter_per_subtask + j ) - col * gridDimY;  
 
-    // These variables are offset by one to avoid seg. fault errors
-    // As such, this kernel ignores the outside ring of pixels
-    const int row = blockIdx.y * blockDim.y + threadIdx.y + 1;
-    const int col = blockIdx.x * blockDim.x + threadIdx.x + 1;
+		const int   g_row = col * blockDim.y + threadIdx.y + 1;
+		const int   g_col = row * blockDim.x + threadIdx.x + 1;
 
-    const int pos = row * cols_CEDD + col;
+		const int pos = g_row * cols_CEDD + g_col;
 
-    const unsigned char EDGE = 255;
+		const unsigned char EDGE = 255;
 
-    unsigned char magnitude = data_CEDD[pos];
+		unsigned char magnitude = data_CEDD[pos];
 
-    if(magnitude >= highThresh)
-        out_CEDD[pos] = EDGE; 
-    else if(magnitude <= lowThresh)
-        out_CEDD[pos] = 0;
-    else {
-        float med = (highThresh + lowThresh) / 2;
+		if(magnitude >= highThresh)
+			out_CEDD[pos] = EDGE; 
+		else if(magnitude <= lowThresh)
+			out_CEDD[pos] = 0;
+		else {
+			float med = (highThresh + lowThresh) / 2;
 
-        if(magnitude >= med)
-            out_CEDD[pos] = EDGE;
-        else
-            out_CEDD[pos] = 0;
-    }
+			if(magnitude >= med)
+				out_CEDD[pos] = EDGE;
+			else
+				out_CEDD[pos] = 0;
+		}
+	}
 }
 
 __global__ void
@@ -2898,7 +2927,8 @@ int launch_orig_HCEDD(void *arg)
     dim3 threads(kstub->kconf.blocksize.x, kstub->kconf.blocksize.y);
 	
 	original_hystCannyCUDA<<<dimGrid, threads>>>(
-		params->data_CEDD, params->out_CEDD, rows_CEDD, cols_CEDD);
+		params->data_CEDD, params->out_CEDD, rows_CEDD, cols_CEDD,
+		params->gridDimY, kstub->kconf.coarsening);
 
 	return 0;
 }

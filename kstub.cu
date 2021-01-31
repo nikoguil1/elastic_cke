@@ -98,8 +98,22 @@ int create_stubinfo(t_kernel_stub **stub, int deviceId, t_Kernel id, cudaStream_
 						k_stub->kconf.coarsening = 40;
 					}
 					else{
-						printf("Error: Unknown device\n");
-						return -1;
+						if (strcmp(device_name, "TITAN V") == 0) {
+							k_stub->kconf.numSMs = 80;
+							k_stub->kconf.max_persistent_blocks = 8;
+							k_stub->kconf.blocksize.x = 256;
+							#ifdef DATA_SET_1
+							k_stub->kconf.gridsize.x = 25 * k_stub->kconf.numSMs * k_stub->kconf.max_persistent_blocks;
+							#else
+							k_stub->kconf.gridsize.x = 20 * k_stub->kconf.numSMs * k_stub->kconf.max_persistent_blocks;
+							#endif
+							k_stub->total_tasks = k_stub->kconf.gridsize.x;
+							k_stub->kconf.coarsening = 40;
+						}
+						else{
+							printf("Error: Unknown device\n");
+							return -1;
+						}
 					}
 				}
 			}
@@ -152,8 +166,18 @@ int create_stubinfo(t_kernel_stub **stub, int deviceId, t_Kernel id, cudaStream_
 						
 					}
 					else{
-						printf("Error: Unknown device\n");
-						return -1;
+						if (strcmp(device_name, "TITAN V") == 0) {
+							k_stub->kconf.numSMs = 80;
+							k_stub->kconf.max_persistent_blocks = 8;
+							k_stub->kconf.blocksize.x = 256;
+							k_stub->kconf.gridsize.x = 6 * k_stub->kconf.numSMs * k_stub->kconf.max_persistent_blocks;
+							k_stub->total_tasks = k_stub->kconf.gridsize.x;
+							k_stub->kconf.coarsening = 160;
+						}
+						else{
+							printf("Error: Unknown device\n");
+							return -1;
+						}
 					}
 				}
 			}
@@ -220,8 +244,21 @@ int create_stubinfo(t_kernel_stub **stub, int deviceId, t_Kernel id, cudaStream_
 						k_stub->kconf.coarsening = 1;
 					}
 					else{
-						printf("Error: Unknown device\n");
-						return -1;
+						if (strcmp(device_name, "TITAN V") == 0) {
+							k_stub->kconf.numSMs = 80;
+							k_stub->kconf.max_persistent_blocks = 8;
+							k_stub->kconf.blocksize.x = 16;
+							k_stub->kconf.blocksize.y = 16;
+							MM_params->gridDimX = MM_params->Bsize.x/k_stub->kconf.blocksize.x; // Add information loss during linearization
+							k_stub->kconf.gridsize.x = MM_params->Bsize.x/k_stub->kconf.blocksize.x * MM_params->Asize.y/k_stub->kconf.blocksize.y;
+							k_stub->kconf.gridsize.y = 1; //Grid Linearization
+							k_stub->total_tasks = k_stub->kconf.gridsize.x;
+							k_stub->kconf.coarsening = 1;
+						}
+						else{
+							printf("Error: Unknown device\n");
+							return -1;
+						}
 					}
 				}
 			}
@@ -333,11 +370,25 @@ int create_stubinfo(t_kernel_stub **stub, int deviceId, t_Kernel id, cudaStream_
 					k_stub->kconf.coarsening = 10;
 					k_stub->total_tasks = k_stub->kconf.gridsize.x  ; //* k_stub->kconf.coarsening;
 					SPMV_params->gridDimX = k_stub->kconf.gridsize.x;
-					
 			}
 			else{
-				printf("Error: Unknown device\n");
-				return -1;
+				if (strcmp(device_name, "TITAN V") == 0) {
+					k_stub->kconf.numSMs = 80;
+					k_stub->kconf.max_persistent_blocks = 16;
+					//k_stub->kconf.blocksize.x = 32;
+					k_stub->kconf.blocksize.x = 128;
+					k_stub->kconf.blocksize.y = 1;
+					//->esto estaba antes k_stub->kconf.gridsize.x =  k_stub->kconf.numSMs * k_stub->kconf.max_persistent_blocks * k_stub->kconf.blocksize.x / 2;
+					k_stub->kconf.gridsize.x = k_stub->kconf.numSMs * k_stub->kconf.max_persistent_blocks * 96 ;//One row per thread when all thread in original version
+					k_stub->kconf.gridsize.y = 1; //Grid Linearization
+					k_stub->kconf.coarsening = 10;
+					k_stub->total_tasks = k_stub->kconf.gridsize.x  ; //* k_stub->kconf.coarsening;
+					SPMV_params->gridDimX = k_stub->kconf.gridsize.x;
+				}
+				else{
+					printf("Error: Unknown device\n");
+					return -1;
+				}
 			}
 			
 			// Esto estaba antes --> SPMV_params->numRows = k_stub->kconf.gridsize.x * k_stub->kconf.blocksize.x * k_stub->kconf.coarsening;
@@ -391,11 +442,32 @@ int create_stubinfo(t_kernel_stub **stub, int deviceId, t_Kernel id, cudaStream_
 					k_stub->kconf.gridsize.y = 1; //Grid Linearization
 					reduction_params->gridDimX = k_stub->kconf.gridsize.x;
 					k_stub->total_tasks =  k_stub->kconf.gridsize.x;
-				
 			} 
 			else{
-				printf("Error: Unknown device\n");
-				return -1;
+				if (strcmp(device_name, "TITAN V") == 0) {
+					k_stub->kconf.numSMs = 80;
+					k_stub->kconf.max_persistent_blocks = 8;
+					k_stub->kconf.blocksize.x = 256;
+					k_stub->kconf.blocksize.y = 1;
+					
+					reduction_params->gridDimX = k_stub->kconf.gridsize.x;
+					//#ifdef DATA_SET_1
+					//k_stub->kconf.gridsize.x =  64*28*8;
+					//#else
+					//k_stub->kconf.gridsize.x =  640*28*8; // 64 * number_of_permanent_blocks, a ver que tal
+					//k_stub->kconf.gridsize.x =  64 * 7;
+					//#endif
+
+					k_stub->kconf.coarsening = 64;					
+					k_stub->kconf.gridsize.x = reduction_params->size / (k_stub->kconf.blocksize.x * 2 * k_stub->kconf.coarsening);
+					k_stub->kconf.gridsize.y = 1; //Grid Linearization
+					reduction_params->gridDimX = k_stub->kconf.gridsize.x;
+					k_stub->total_tasks =  k_stub->kconf.gridsize.x;
+				} 
+				else{
+					printf("Error: Unknown device\n");
+					return -1;
+				}
 			}
 
 			break;
@@ -468,8 +540,7 @@ int create_stubinfo(t_kernel_stub **stub, int deviceId, t_Kernel id, cudaStream_
 					k_stub->total_tasks = k_stub->kconf.gridsize.x;
 					k_stub->kconf.coarsening = 1;
 				}
-				else{
-					
+				else{	
 					if (strcmp(device_name, "TITAN X (Pascal)") == 0) {
 						k_stub->kconf.numSMs = 28;
 						k_stub->kconf.max_persistent_blocks = 8;
@@ -480,8 +551,19 @@ int create_stubinfo(t_kernel_stub **stub, int deviceId, t_Kernel id, cudaStream_
 						k_stub->kconf.coarsening = 1;
 					}
 					else{
-						printf("Error: Unknown device\n");
-						return -1;
+						if (strcmp(device_name, "TITAN V") == 0) {
+							k_stub->kconf.numSMs = 80;
+							k_stub->kconf.max_persistent_blocks = 8;
+							k_stub->kconf.blocksize.x = 256;
+							int smallBlockCol = k_stub->kconf.blocksize.x-(PF_params->param_pyramid_height)*2;
+							k_stub->kconf.gridsize.x = PF_params->nCols/smallBlockCol+((PF_params->nCols%smallBlockCol==0)?0:1);
+							k_stub->total_tasks = k_stub->kconf.gridsize.x;
+							k_stub->kconf.coarsening = 1;
+						}
+						else{
+							printf("Error: Unknown device\n");
+							return -1;
+						}
 					}
 				}
 			}
@@ -548,15 +630,34 @@ int create_stubinfo(t_kernel_stub **stub, int deviceId, t_Kernel id, cudaStream_
 						CONV_params->gridDimY[0] = CONV_params->conv_cols / k_stub->kconf.blocksize.y;
 						k_stub->kconf.gridsize.x = (CONV_params->conv_rows / (8 * 16)) * (CONV_params->conv_cols / 4);
 						k_stub->kconf.gridsize.y = 1; //Grid Linearization*/
+						k_stub->kconf.coarsening = 1;
 						k_stub->kconf.gridsize.x = CONV_params->conv_cols / (8 * k_stub->kconf.blocksize.x * k_stub->kconf.coarsening );
 						k_stub->kconf.gridsize.y = CONV_params->conv_rows / k_stub->kconf.blocksize.y;
 						k_stub->total_tasks = (k_stub->kconf.gridsize.x * k_stub->kconf.gridsize.y)/k_stub->kconf.coarsening;
 						CONV_params->gridDimX[0] = k_stub->kconf.gridsize.x;
 						CONV_params->gridDimY[0] = k_stub->kconf.gridsize.y;
+						printf("Grid Dim X: %d\n", k_stub->kconf.gridsize.x);
+						printf("Grid Dim Y: %d\n", k_stub->kconf.gridsize.y);
 					}
 					else{
-						printf("Error: Unknown device\n");
-						return -1;
+						if (strcmp(device_name, "TITAN V") == 0) {
+							k_stub->kconf.numSMs = 80;
+							k_stub->kconf.max_persistent_blocks = 32;
+							k_stub->kconf.blocksize.x = 16;
+							k_stub->kconf.blocksize.y = 4;
+							k_stub->kconf.coarsening = 1;
+							k_stub->kconf.gridsize.x = CONV_params->conv_cols / (8 * k_stub->kconf.blocksize.x * k_stub->kconf.coarsening );
+							k_stub->kconf.gridsize.y = CONV_params->conv_rows / k_stub->kconf.blocksize.y;
+							k_stub->total_tasks = (k_stub->kconf.gridsize.x * k_stub->kconf.gridsize.y)/k_stub->kconf.coarsening;
+							CONV_params->gridDimX[0] = k_stub->kconf.gridsize.x;
+							CONV_params->gridDimY[0] = k_stub->kconf.gridsize.y;
+							printf("Grid Dim X: %d\n", k_stub->kconf.gridsize.x);
+							printf("Grid Dim Y: %d\n", k_stub->kconf.gridsize.y);
+						}
+						else{
+							printf("Error: Unknown device\n");
+							return -1;
+						}
 					}
 				}
 			}
@@ -613,16 +714,34 @@ int create_stubinfo(t_kernel_stub **stub, int deviceId, t_Kernel id, cudaStream_
 						k_stub->kconf.max_persistent_blocks = 16;
 						k_stub->kconf.blocksize.x = 16;
 						k_stub->kconf.blocksize.y = 8;
-						k_stub->kconf.coarsening = 8; 
+						k_stub->kconf.coarsening = 1; 
 						k_stub->kconf.gridsize.x = CONV_params->conv_cols / (8 * k_stub->kconf.blocksize.x * k_stub->kconf.coarsening);
 						k_stub->kconf.gridsize.y = CONV_params->conv_rows / k_stub->kconf.blocksize.y;
 						k_stub->total_tasks = k_stub->kconf.gridsize.x * k_stub->kconf.gridsize.y;
 						CONV_params->gridDimX[1] = k_stub->kconf.gridsize.x;
-						CONV_params->gridDimY[1] = k_stub->kconf.gridsize.y ;
+						CONV_params->gridDimY[1] = k_stub->kconf.gridsize.y;
+						printf("Grid Dim X: %d\n", k_stub->kconf.gridsize.x);
+						printf("Grid Dim Y: %d\n", k_stub->kconf.gridsize.y);
 					}
 					else{
-						printf("Error: Unknown device\n");
-						return -1;
+						if (strcmp(device_name, "TITAN V") == 0) {
+							k_stub->kconf.numSMs = 80; 
+							k_stub->kconf.max_persistent_blocks = 16;
+							k_stub->kconf.blocksize.x = 16;
+							k_stub->kconf.blocksize.y = 8;
+							k_stub->kconf.coarsening = 1; 
+							k_stub->kconf.gridsize.x = CONV_params->conv_cols / (8 * k_stub->kconf.blocksize.x * k_stub->kconf.coarsening);
+							k_stub->kconf.gridsize.y = CONV_params->conv_rows / k_stub->kconf.blocksize.y;
+							k_stub->total_tasks = k_stub->kconf.gridsize.x * k_stub->kconf.gridsize.y;
+							CONV_params->gridDimX[1] = k_stub->kconf.gridsize.x;
+							CONV_params->gridDimY[1] = k_stub->kconf.gridsize.y ;
+							printf("Grid Dim X: %d\n", k_stub->kconf.gridsize.x);
+							printf("Grid Dim Y: %d\n", k_stub->kconf.gridsize.y);
+						}
+						else{
+							printf("Error: Unknown device\n");
+							return -1;
+						}
 					}
 				}
 			}
@@ -663,9 +782,9 @@ int create_stubinfo(t_kernel_stub **stub, int deviceId, t_Kernel id, cudaStream_
 			CEDD_params->nRows=4608;
 			CEDD_params->nCols=1200 * k_stub->kconf.coarsening;
 			#else
-			CEDD_params->nRows=4096;
+			CEDD_params->nRows=4096 * 4;
 			//CEDD_params->nCols=1200 * k_stub->kconf.coarsening;
-			CEDD_params->nCols=4096;
+			CEDD_params->nCols=4096 * 4;
 			#endif
 			
 			k_stub->params = (void *)CEDD_params;
@@ -707,7 +826,7 @@ int create_stubinfo(t_kernel_stub **stub, int deviceId, t_Kernel id, cudaStream_
 						k_stub->kconf.max_persistent_blocks = 8;
 						k_stub->kconf.blocksize.x = 16;
 						k_stub->kconf.blocksize.y = 16;
-						k_stub->kconf.coarsening = 16;
+						k_stub->kconf.coarsening = 22;
 						//CEDD_params->gridDimX = (CEDD_params->nCols - 2)/(k_stub->kconf.blocksize.x *  k_stub->kconf.coarsening); // Add information loss during linearization
 						CEDD_params->gridDimX = (CEDD_params->nCols-2)/(k_stub->kconf.blocksize.x * k_stub->kconf.coarsening);
 						CEDD_params->gridDimY = (CEDD_params->nRows-2)/k_stub->kconf.blocksize.y;
@@ -715,10 +834,28 @@ int create_stubinfo(t_kernel_stub **stub, int deviceId, t_Kernel id, cudaStream_
 						k_stub->kconf.gridsize.y = 1; //Grid Linearization
 						//k_stub->total_tasks = k_stub->kconf.gridsize.x;
 						k_stub->total_tasks = k_stub->kconf.gridsize.x;
+						printf("Grid Size: %d\n", k_stub->kconf.gridsize.x);
 					}
 					else{
-						printf("Error: Unknown device\n");
-						return -1;
+						if (strcmp(device_name, "TITAN V") == 0) {
+							k_stub->kconf.numSMs = 80;
+							k_stub->kconf.max_persistent_blocks = 8;
+							k_stub->kconf.blocksize.x = 16;
+							k_stub->kconf.blocksize.y = 16;
+							k_stub->kconf.coarsening = 18;
+							//CEDD_params->gridDimX = (CEDD_params->nCols - 2)/(k_stub->kconf.blocksize.x *  k_stub->kconf.coarsening); // Add information loss during linearization
+							CEDD_params->gridDimX = (CEDD_params->nCols-2)/(k_stub->kconf.blocksize.x * k_stub->kconf.coarsening);
+							CEDD_params->gridDimY = (CEDD_params->nRows-2)/k_stub->kconf.blocksize.y;
+							k_stub->kconf.gridsize.x = CEDD_params->gridDimX * CEDD_params->gridDimY;
+							k_stub->kconf.gridsize.y = 1; //Grid Linearization
+							//k_stub->total_tasks = k_stub->kconf.gridsize.x;
+							k_stub->total_tasks = k_stub->kconf.gridsize.x;
+							printf("Grid Size: %d\n", k_stub->kconf.gridsize.x);
+						}
+						else{
+							printf("Error: Unknown device\n");
+							return -1;
+						}
 					}
 				}
 			}
@@ -785,16 +922,32 @@ int create_stubinfo(t_kernel_stub **stub, int deviceId, t_Kernel id, cudaStream_
 						k_stub->kconf.max_persistent_blocks = 8;
 						k_stub->kconf.blocksize.x = 16;
 						k_stub->kconf.blocksize.y = 16;
-						CEDD_params->gridDimX = (CEDD_params->nCols - 2)/k_stub->kconf.blocksize.x; // Add information loss during linearization
+						k_stub->kconf.coarsening = 18;
+						CEDD_params->gridDimX = (CEDD_params->nCols-2)/(k_stub->kconf.blocksize.x * k_stub->kconf.coarsening);
 						CEDD_params->gridDimY = (CEDD_params->nRows - 2)/k_stub->kconf.blocksize.y;
 						k_stub->kconf.gridsize.x = CEDD_params->gridDimX * CEDD_params->gridDimY;
 						k_stub->kconf.gridsize.y = 1; //Grid Linearization
 						k_stub->total_tasks = k_stub->kconf.gridsize.x;
-						k_stub->kconf.coarsening = 1;
+						printf("Grid Size: %d\n", k_stub->kconf.gridsize.x);
 					}
 					else{
-						printf("Error: Unknown device\n");
-						return -1;
+						if (strcmp(device_name, "TITAN V") == 0) {
+							k_stub->kconf.numSMs = 80;
+							k_stub->kconf.max_persistent_blocks = 8;
+							k_stub->kconf.blocksize.x = 16;
+							k_stub->kconf.blocksize.y = 16;
+							k_stub->kconf.coarsening = 16;
+							CEDD_params->gridDimX = (CEDD_params->nCols-2)/(k_stub->kconf.blocksize.x * k_stub->kconf.coarsening);
+							CEDD_params->gridDimY = (CEDD_params->nRows - 2)/k_stub->kconf.blocksize.y;
+							k_stub->kconf.gridsize.x = CEDD_params->gridDimX * CEDD_params->gridDimY;
+							k_stub->kconf.gridsize.y = 1; //Grid Linearization
+							k_stub->total_tasks = k_stub->kconf.gridsize.x;
+							printf("Grid Size: %d\n", k_stub->kconf.gridsize.x);
+						}
+						else{
+							printf("Error: Unknown device\n");
+							return -1;
+						}
 					}
 				}
 			}
@@ -861,16 +1014,32 @@ int create_stubinfo(t_kernel_stub **stub, int deviceId, t_Kernel id, cudaStream_
 						k_stub->kconf.max_persistent_blocks = 8;
 						k_stub->kconf.blocksize.x = 16;
 						k_stub->kconf.blocksize.y = 16;
-						CEDD_params->gridDimX = (CEDD_params->nCols - 2)/k_stub->kconf.blocksize.x; // Add information loss during linearization
+						k_stub->kconf.coarsening = 24;
+						CEDD_params->gridDimX = (CEDD_params->nCols - 2)/(k_stub->kconf.blocksize.x * k_stub->kconf.coarsening);
 						CEDD_params->gridDimY = (CEDD_params->nRows - 2)/k_stub->kconf.blocksize.y;
 						k_stub->kconf.gridsize.x = CEDD_params->gridDimX * CEDD_params->gridDimY;
 						k_stub->kconf.gridsize.y = 1; //Grid Linearization
 						k_stub->total_tasks = k_stub->kconf.gridsize.x;
-						k_stub->kconf.coarsening = 1;
+						printf("Grid Size: %d\n", k_stub->kconf.gridsize.x);
 					}
 					else{
-						printf("Error: Unknown device\n");
-						return -1;
+						if (strcmp(device_name, "TITAN V") == 0) {
+							k_stub->kconf.numSMs = 80;
+							k_stub->kconf.max_persistent_blocks = 8;
+							k_stub->kconf.blocksize.x = 16;
+							k_stub->kconf.blocksize.y = 16;
+							k_stub->kconf.coarsening = 18;
+							CEDD_params->gridDimX = (CEDD_params->nCols - 2)/(k_stub->kconf.blocksize.x * k_stub->kconf.coarsening);
+							CEDD_params->gridDimY = (CEDD_params->nRows - 2)/k_stub->kconf.blocksize.y;
+							k_stub->kconf.gridsize.x = CEDD_params->gridDimX * CEDD_params->gridDimY;
+							k_stub->kconf.gridsize.y = 1; //Grid Linearization
+							k_stub->total_tasks = k_stub->kconf.gridsize.x;
+							printf("Grid Size: %d\n", k_stub->kconf.gridsize.x);
+						}
+						else{
+							printf("Error: Unknown device\n");
+							return -1;
+						}
 					}
 				}
 			}
@@ -937,16 +1106,32 @@ int create_stubinfo(t_kernel_stub **stub, int deviceId, t_Kernel id, cudaStream_
 						k_stub->kconf.max_persistent_blocks = 8;
 						k_stub->kconf.blocksize.x = 16;
 						k_stub->kconf.blocksize.y = 16;
-						CEDD_params->gridDimX = (CEDD_params->nCols - 2)/k_stub->kconf.blocksize.x; // Add information loss during linearization
+						k_stub->kconf.coarsening = 16;
+						CEDD_params->gridDimX = (CEDD_params->nCols - 2)/(k_stub->kconf.blocksize.x * k_stub->kconf.coarsening);
 						CEDD_params->gridDimY = (CEDD_params->nRows - 2)/k_stub->kconf.blocksize.y;
 						k_stub->kconf.gridsize.x = CEDD_params->gridDimX * CEDD_params->gridDimY;
 						k_stub->kconf.gridsize.y = 1; //Grid Linearization
 						k_stub->total_tasks = k_stub->kconf.gridsize.x;
-						k_stub->kconf.coarsening = 1;
+						printf("Grid Size: %d\n", k_stub->kconf.gridsize.x);
 					}
 					else{
-						printf("Error: Unknown device\n");
-						return -1;
+						if (strcmp(device_name, "TITAN V") == 0) {
+							k_stub->kconf.numSMs = 80;
+							k_stub->kconf.max_persistent_blocks = 8;
+							k_stub->kconf.blocksize.x = 16;
+							k_stub->kconf.blocksize.y = 16;
+							k_stub->kconf.coarsening = 16;
+							CEDD_params->gridDimX = (CEDD_params->nCols - 2)/(k_stub->kconf.blocksize.x * k_stub->kconf.coarsening);
+							CEDD_params->gridDimY = (CEDD_params->nRows - 2)/k_stub->kconf.blocksize.y;
+							k_stub->kconf.gridsize.x = CEDD_params->gridDimX * CEDD_params->gridDimY;
+							k_stub->kconf.gridsize.y = 1; //Grid Linearization
+							k_stub->total_tasks = k_stub->kconf.gridsize.x;
+							printf("Grid Size: %d\n", k_stub->kconf.gridsize.x);
+						}
+						else{
+							printf("Error: Unknown device\n");
+							return -1;
+						}
 					}
 				}
 			}
@@ -1015,7 +1200,7 @@ int create_stubinfo(t_kernel_stub **stub, int deviceId, t_Kernel id, cudaStream_
 						#ifdef DATA_SET_1
 						HST256_params->byteCount256 = 64 * 1089536 * 8;
 						#else
-						HST256_params->byteCount256 = 64 * 1089536; //* 8 *2;
+						HST256_params->byteCount256 = 64 * 1089536 * 8; //* 8 *2;
 						#endif
 						
 						k_stub->kconf.numSMs = 28;
@@ -1031,8 +1216,33 @@ int create_stubinfo(t_kernel_stub **stub, int deviceId, t_Kernel id, cudaStream_
 						//k_stub->total_tasks = (64 * 1048576)/k_stub->kconf.blocksize.x + (((64 * 1048576)%k_stub->kconf.blocksize.x==0)?0:1);
 					}
 					else{
-						printf("Error: Unknown device\n");
-						return -1;
+						if (strcmp(device_name, "TITAN V") == 0) {
+							HST256_params->warp_count = 8;
+							HST256_params->histogram256_threadblock_size = HST256_params->warp_count * WARP_SIZE;
+							HST256_params->histogram256_threadblock_memory = HST256_params->warp_count * HISTOGRAM256_BIN_COUNT;
+							
+							#ifdef DATA_SET_1
+							HST256_params->byteCount256 = 64 * 1089536 * 8;
+							#else
+							HST256_params->byteCount256 = 64 * 1089536 * 10; //* 8 *2;
+							#endif
+							
+							k_stub->kconf.numSMs = 80;
+							k_stub->kconf.max_persistent_blocks = 8;
+							k_stub->kconf.blocksize.x = 256;
+							k_stub->kconf.coarsening = 128; // Ojo coarsening tienen que ser 1 para prubas con slicing (cCUDA)
+							//k_stub->kconf.gridsize.x  = HST256_params->byteCount256 / (sizeof(uint) * k_stub->kconf.coarsening * k_stub->kconf.blocksize.x);
+							k_stub->kconf.gridsize.x  = k_stub->kconf.numSMs * k_stub->kconf.max_persistent_blocks;
+							HST256_params->gridDimX = k_stub->kconf.gridsize.x;
+							//k_stub->total_tasks = k_stub->kconf.gridsize.x;
+							k_stub->total_tasks = HST256_params->byteCount256 / (sizeof(uint) * k_stub->kconf.blocksize.x * k_stub->kconf.coarsening);
+							// k_stub->total_tasks = (k_stub->kconf.gridsize.x * ((HST256_params->byteCount256 / sizeof(uint)) / (k_stub->kconf.blocksize.x * k_stub->kconf.gridsize.x))) / k_stub->kconf.coarsening;
+							//k_stub->total_tasks = (64 * 1048576)/k_stub->kconf.blocksize.x + (((64 * 1048576)%k_stub->kconf.blocksize.x==0)?0:1);
+						}
+						else{
+							printf("Error: Unknown device\n");
+							return -1;
+						}
 					}
 				}
 			}
@@ -1126,7 +1336,7 @@ int create_stubinfo_with_params(t_kernel_stub **stub, int deviceId, t_Kernel id,
 		{
 			t_CONV_params *CONV_params = (t_CONV_params *)params;
 			
-			CONV_params->gridDimY[1] = CONV_params->conv_cols /  (8 * 8);
+			//CONV_params->gridDimY[1] = CONV_params->conv_cols /  (8 * 8);
 			k_stub->params = (void *)CONV_params;
 		
 			k_stub->launchCKEkernel = launch_preemp_CCONV;
@@ -1164,16 +1374,34 @@ int create_stubinfo_with_params(t_kernel_stub **stub, int deviceId, t_Kernel id,
 						k_stub->kconf.max_persistent_blocks = 16;
 						k_stub->kconf.blocksize.x = 16;
 						k_stub->kconf.blocksize.y = 8;
-						k_stub->kconf.coarsening = 4; 
+						k_stub->kconf.coarsening = 1; 
 						k_stub->kconf.gridsize.x = CONV_params->conv_cols / (k_stub->kconf.blocksize.x);
 						k_stub->kconf.gridsize.y = CONV_params->conv_rows / ( 8 * k_stub->kconf.blocksize.y) ;
 						k_stub->total_tasks = k_stub->kconf.gridsize.x * k_stub->kconf.gridsize.y / k_stub->kconf.coarsening;
 						CONV_params->gridDimX[1] = k_stub->kconf.gridsize.x;
-						CONV_params->gridDimY[1] = k_stub->kconf.gridsize.y ;
+						CONV_params->gridDimY[1] = k_stub->kconf.gridsize.y;
+						printf("Grid Dim X: %d\n", k_stub->kconf.gridsize.x);
+						printf("Grid Dim Y: %d\n", k_stub->kconf.gridsize.y);
 					}
 					else{
-						printf("Error: Unknown device\n");
-						return -1;
+						if (strcmp(device_name, "TITAN V") == 0) {
+							k_stub->kconf.numSMs = 80; 
+							k_stub->kconf.max_persistent_blocks = 16;
+							k_stub->kconf.blocksize.x = 16;
+							k_stub->kconf.blocksize.y = 8;
+							k_stub->kconf.coarsening = 1; 
+							k_stub->kconf.gridsize.x = CONV_params->conv_cols / (k_stub->kconf.blocksize.x);
+							k_stub->kconf.gridsize.y = CONV_params->conv_rows / ( 8 * k_stub->kconf.blocksize.y) ;
+							k_stub->total_tasks = k_stub->kconf.gridsize.x * k_stub->kconf.gridsize.y / k_stub->kconf.coarsening;
+							CONV_params->gridDimX[1] = k_stub->kconf.gridsize.x;
+							CONV_params->gridDimY[1] = k_stub->kconf.gridsize.y;
+							printf("Grid Dim X: %d\n", k_stub->kconf.gridsize.x);
+							printf("Grid Dim Y: %d\n", k_stub->kconf.gridsize.y);
+						}
+						else{
+							printf("Error: Unknown device\n");
+							return -1;
+						}
 					}
 				}
 			}
@@ -1242,7 +1470,7 @@ int create_stubinfo_with_params(t_kernel_stub **stub, int deviceId, t_Kernel id,
 						k_stub->kconf.max_persistent_blocks = 8;
 						k_stub->kconf.blocksize.x = 16;
 						k_stub->kconf.blocksize.y = 16;
-						k_stub->kconf.coarsening = 16;
+						k_stub->kconf.coarsening = 18;
 						//CEDD_params->gridDimX = (CEDD_params->nCols - 2)/(k_stub->kconf.blocksize.x *  k_stub->kconf.coarsening); // Add information loss during linearization
 						CEDD_params->gridDimX = (CEDD_params->nCols-2)/(k_stub->kconf.blocksize.x * k_stub->kconf.coarsening);
 						CEDD_params->gridDimY = (CEDD_params->nRows-2)/k_stub->kconf.blocksize.y;
@@ -1250,10 +1478,26 @@ int create_stubinfo_with_params(t_kernel_stub **stub, int deviceId, t_Kernel id,
 						k_stub->kconf.gridsize.y = 1; //Grid Linearization
 						//k_stub->total_tasks = k_stub->kconf.gridsize.x;
 						k_stub->total_tasks = k_stub->kconf.gridsize.x;
+						printf("Grid Size: %d\n", k_stub->kconf.gridsize.x);
 					}
 					else{
-						printf("Error: Unknown device\n");
-						return -1;
+						if (strcmp(device_name, "TITAN V") == 0) {
+							k_stub->kconf.numSMs = 80;
+							k_stub->kconf.max_persistent_blocks = 8;
+							k_stub->kconf.blocksize.x = 16;
+							k_stub->kconf.blocksize.y = 16;
+							k_stub->kconf.coarsening = 16;
+							CEDD_params->gridDimX = (CEDD_params->nCols-2)/(k_stub->kconf.blocksize.x * k_stub->kconf.coarsening);
+							CEDD_params->gridDimY = (CEDD_params->nRows-2)/k_stub->kconf.blocksize.y;
+							k_stub->kconf.gridsize.x = CEDD_params->gridDimX * CEDD_params->gridDimY;
+							k_stub->kconf.gridsize.y = 1; //Grid Linearization
+							k_stub->total_tasks = k_stub->kconf.gridsize.x;
+							printf("Grid Size: %d\n", k_stub->kconf.gridsize.x);
+						}
+						else{
+							printf("Error: Unknown device\n");
+							return -1;
+						}
 					}
 				}
 			}
@@ -1323,17 +1567,34 @@ int create_stubinfo_with_params(t_kernel_stub **stub, int deviceId, t_Kernel id,
 						k_stub->kconf.max_persistent_blocks = 8;
 						k_stub->kconf.blocksize.x = 16;
 						k_stub->kconf.blocksize.y = 16;
-						k_stub->kconf.coarsening = 16;
+						k_stub->kconf.coarsening = 24;
 						//CEDD_params->gridDimX = (CEDD_params->nCols - 2)/(k_stub->kconf.blocksize.x *  k_stub->kconf.coarsening);
 						CEDD_params->gridDimX = (CEDD_params->nCols - 2)/(k_stub->kconf.blocksize.x * k_stub->kconf.coarsening);
 						CEDD_params->gridDimY = (CEDD_params->nRows - 2)/k_stub->kconf.blocksize.y;
 						k_stub->kconf.gridsize.x = CEDD_params->gridDimX * CEDD_params->gridDimY;
 						k_stub->kconf.gridsize.y = 1; //Grid Linearization
 						k_stub->total_tasks = k_stub->kconf.gridsize.x;
+						printf("Grid Size: %d\n", k_stub->kconf.gridsize.x);
 					}
 					else{
-						printf("Error: Unknown device\n");
-						return -1;
+						if (strcmp(device_name, "TITAN V") == 0) {
+							k_stub->kconf.numSMs = 80;
+							k_stub->kconf.max_persistent_blocks = 8;
+							k_stub->kconf.blocksize.x = 16;
+							k_stub->kconf.blocksize.y = 16;
+							k_stub->kconf.coarsening = 18;
+							//CEDD_params->gridDimX = (CEDD_params->nCols - 2)/(k_stub->kconf.blocksize.x *  k_stub->kconf.coarsening);
+							CEDD_params->gridDimX = (CEDD_params->nCols - 2)/(k_stub->kconf.blocksize.x * k_stub->kconf.coarsening);
+							CEDD_params->gridDimY = (CEDD_params->nRows - 2)/k_stub->kconf.blocksize.y;
+							k_stub->kconf.gridsize.x = CEDD_params->gridDimX * CEDD_params->gridDimY;
+							k_stub->kconf.gridsize.y = 1; //Grid Linearization
+							k_stub->total_tasks = k_stub->kconf.gridsize.x;
+							printf("Grid Size: %d\n", k_stub->kconf.gridsize.x);
+						}
+						else{
+							printf("Error: Unknown device\n");
+							return -1;
+						}
 					}
 				}
 			}
@@ -1410,10 +1671,26 @@ int create_stubinfo_with_params(t_kernel_stub **stub, int deviceId, t_Kernel id,
 						k_stub->kconf.gridsize.x = CEDD_params->gridDimX * CEDD_params->gridDimY;
 						k_stub->kconf.gridsize.y = 1; //Grid Linearization
 						k_stub->total_tasks = k_stub->kconf.gridsize.x;
+						printf("Grid Size: %d\n", k_stub->kconf.gridsize.x);
 					}
 					else{
-						printf("Error: Unknown device\n");
-						return -1;
+						if (strcmp(device_name, "TITAN V") == 0) {
+							k_stub->kconf.numSMs = 80;
+							k_stub->kconf.max_persistent_blocks = 8;
+							k_stub->kconf.blocksize.x = 16;
+							k_stub->kconf.blocksize.y = 16;
+							k_stub->kconf.coarsening = 16;
+							CEDD_params->gridDimX = (CEDD_params->nCols - 2)/(k_stub->kconf.blocksize.x * k_stub->kconf.coarsening);
+							CEDD_params->gridDimY = (CEDD_params->nRows - 2)/k_stub->kconf.blocksize.y;
+							k_stub->kconf.gridsize.x = CEDD_params->gridDimX * CEDD_params->gridDimY;
+							k_stub->kconf.gridsize.y = 1; //Grid Linearization
+							k_stub->total_tasks = k_stub->kconf.gridsize.x;
+							printf("Grid Size: %d\n", k_stub->kconf.gridsize.x);
+						}
+						else{
+							printf("Error: Unknown device\n");
+							return -1;
+						}
 					}
 				}
 			}
