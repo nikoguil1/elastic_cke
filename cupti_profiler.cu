@@ -377,7 +377,7 @@ available_metrics_cupti_profiler(	CUdevice device,
 		printf("\n %lu metrics will be profiled\n", metric_names.size());
 
 	free(metricIdArray);
-	return std::move(metric_names);
+	return (metric_names);
 }
 
 FILE *

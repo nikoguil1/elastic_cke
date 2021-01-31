@@ -672,8 +672,9 @@ int launch_orig_RCONV(void *arg)
 	dim3 blocks(kstub->kconf.gridsize.x, kstub->kconf.gridsize.y);
     dim3 threads(kstub->kconf.blocksize.x, kstub->kconf.blocksize.y);
 	
-	original_rowsConvolutionCUDA<<<blocks, threads>>>(
-		params->d_Buffer, params->d_Input, imageW, imageH, imageW);
+	for ( int i = 0; i < kstub->kconf.coarsening; i++ )
+		original_rowsConvolutionCUDA<<<blocks, threads>>>(
+			params->d_Buffer, params->d_Input, imageW, imageH, imageW);
 
 	return 0;
 }

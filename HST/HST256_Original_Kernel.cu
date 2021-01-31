@@ -853,15 +853,16 @@ int launch_orig_HST256(void *arg)
 	t_kernel_stub *kstub = (t_kernel_stub *)arg;
 	t_HST256_params * params = (t_HST256_params *)kstub->params;
 	
-	original_histogram256CUDA<<<kstub->kconf.gridsize.x, kstub->kconf.blocksize.x, params->histogram256_threadblock_memory * sizeof(uint)>>>(
-        params->d_PartialHistograms256,
-        (uint *)params->d_Data256,
-        params->byteCount256 / sizeof(uint),
-		
-		params->warp_count,
-		params->histogram256_threadblock_size,
-		params->histogram256_threadblock_memory
-    );
+	for ( int i = 0; i < kstub->kconf.coarsening; i++ )
+		original_histogram256CUDA<<<kstub->kconf.gridsize.x, kstub->kconf.blocksize.x, params->histogram256_threadblock_memory * sizeof(uint)>>>(
+			params->d_PartialHistograms256,
+			(uint *)params->d_Data256,
+			params->byteCount256 / sizeof(uint),
+			
+			params->warp_count,
+			params->histogram256_threadblock_size,
+			params->histogram256_threadblock_memory
+    	);
 
 	return 0;
 }

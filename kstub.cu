@@ -49,6 +49,7 @@ int create_stubinfo(t_kernel_stub **stub, int deviceId, t_Kernel id, cudaStream_
 	cudaGetDeviceProperties(&deviceProp, deviceId);
 	char *device_name = deviceProp.name;
 	int numSMs = deviceProp.multiProcessorCount;
+	numSMs = 80;
 	int maxBlocksPerMulti;
 
 	size_t freeMem, totalMem;
@@ -107,7 +108,7 @@ cudaOccupancyMaxActiveBlocksPerMultiprocessor( &maxBlocksPerMulti,
 											   k_stub->kconf.blocksize.x,
 											   0);
 						size_t memReq = 5 * k_stub->kconf.gridsize.x * k_stub->kconf.blocksize.x * k_stub->kconf.coarsening * sizeof(float);
-						printf("BS: SMs %d, MaxBlocks %d, Mem %zu (max %zu aval %zu - %zu)\n", numSMs, maxBlocksPerMulti, memReq/1048576, totalMem/1048576, freeMem/1048576, (freeMem-memReq)/1048576);
+//						printf("BS: SMs %d, MaxBlocks %d, Mem %zu (max %zu aval %zu - %zu)\n", numSMs, maxBlocksPerMulti, memReq/1048576, totalMem/1048576, freeMem/1048576, (freeMem-memReq)/1048576);
 					}
 					else{
 
@@ -127,7 +128,7 @@ cudaOccupancyMaxActiveBlocksPerMultiprocessor( &maxBlocksPerMulti,
 							k_stub->total_tasks = k_stub->kconf.gridsize.x;
 							k_stub->kconf.coarsening = 40;
 							size_t memReq = 5 * k_stub->kconf.gridsize.x * k_stub->kconf.blocksize.x * k_stub->kconf.coarsening * sizeof(float);
-							printf("BS: SMs %d, MaxBlocks %d, Mem %zu (max %zu aval %zu - %zu)\n", numSMs, maxBlocksPerMulti, memReq/1048576, totalMem/1048576, freeMem/1048576, (freeMem-memReq)/1048576);
+//							printf("BS: SMs %d, MaxBlocks %d, Mem %zu (max %zu aval %zu - %zu)\n", numSMs, maxBlocksPerMulti, memReq/1048576, totalMem/1048576, freeMem/1048576, (freeMem-memReq)/1048576);
 						}
 						else{
 							printf("Error: Unknown device\n");
@@ -188,7 +189,7 @@ cudaOccupancyMaxActiveBlocksPerMultiprocessor( &maxBlocksPerMulti,
 											   k_stub->kconf.blocksize.x,
 											   0);
 						size_t memReq = 3 * k_stub->kconf.gridsize.x * k_stub->kconf.blocksize.x * k_stub->kconf.coarsening * sizeof(float);
-						printf("VA: SMs %d, MaxBlocks %d, Mem %zu (max %zu aval %zu - %zu)\n", numSMs, maxBlocksPerMulti, memReq/1048576, totalMem/1048576, freeMem/1048576, (freeMem-memReq)/1048576);
+//						printf("VA: SMs %d, MaxBlocks %d, Mem %zu (max %zu aval %zu - %zu)\n", numSMs, maxBlocksPerMulti, memReq/1048576, totalMem/1048576, freeMem/1048576, (freeMem-memReq)/1048576);
 						
 					}
 					else{
@@ -210,7 +211,7 @@ cudaOccupancyMaxActiveBlocksPerMultiprocessor( &maxBlocksPerMulti,
 							k_stub->total_tasks = k_stub->kconf.gridsize.x;
 							VA_params->gridDimX = k_stub->kconf.gridsize.x;
 							size_t memReq = 3 * k_stub->kconf.gridsize.x * k_stub->kconf.blocksize.x * k_stub->kconf.coarsening * sizeof(float);
-							printf("VA: SMs %d, MaxBlocks %d, Mem %zu (max %zu aval %zu - %zu)\n", numSMs, maxBlocksPerMulti, memReq/1048576, totalMem/1048576, freeMem/1048576, (freeMem-memReq)/1048576);
+//							printf("VA: SMs %d, MaxBlocks %d, Mem %zu (max %zu aval %zu - %zu)\n", numSMs, maxBlocksPerMulti, memReq/1048576, totalMem/1048576, freeMem/1048576, (freeMem-memReq)/1048576);
 							
 						}
 						else{						
@@ -287,7 +288,7 @@ cudaOccupancyMaxActiveBlocksPerMultiprocessor( &maxBlocksPerMulti,
 											   k_stub->kconf.blocksize.x*k_stub->kconf.blocksize.y,
 											   0);
 						size_t memReq = (MM_params->Asize.x * MM_params->Asize.y + MM_params->Bsize.x * MM_params->Bsize.y + MM_params->Bsize.x * MM_params->Asize.y)*sizeof(float);
-						printf("MM: SMs %d, MaxBlocks %d, Mem %zu (max %zu aval %zu - %zu)\n", numSMs, maxBlocksPerMulti, memReq/1048576, totalMem/1048576, freeMem/1048576, (freeMem-memReq)/1048576);				
+//						printf("MM: SMs %d, MaxBlocks %d, Mem %zu (max %zu aval %zu - %zu)\n", numSMs, maxBlocksPerMulti, memReq/1048576, totalMem/1048576, freeMem/1048576, (freeMem-memReq)/1048576);				
 					}
 					else{
 						if (strcmp(device_name, "TITAN V") == 0) {
@@ -308,7 +309,7 @@ cudaOccupancyMaxActiveBlocksPerMultiprocessor( &maxBlocksPerMulti,
 							k_stub->total_tasks = k_stub->kconf.gridsize.x;
 							k_stub->kconf.coarsening = 1;
 							size_t memReq = (MM_params->Asize.x * MM_params->Asize.y + MM_params->Bsize.x * MM_params->Bsize.y + MM_params->Bsize.x * MM_params->Asize.y)*sizeof(float);
-							printf("MM: SMs %d, MaxBlocks %d, Mem %zu (max %zu aval %zu - %zu)\n", numSMs, maxBlocksPerMulti, memReq/1048576, totalMem/1048576, freeMem/1048576, (freeMem-memReq)/1048576);				
+//							printf("MM: SMs %d, MaxBlocks %d, Mem %zu (max %zu aval %zu - %zu)\n", numSMs, maxBlocksPerMulti, memReq/1048576, totalMem/1048576, freeMem/1048576, (freeMem-memReq)/1048576);				
 						}
 						else{						
 							printf("Error: Unknown device\n");
@@ -470,7 +471,7 @@ cudaOccupancyMaxActiveBlocksPerMultiprocessor( &maxBlocksPerMulti,
 			SPMV_params->numNonZeroes = SPMV_params->nItems;
 			{
 			size_t memReq = SPMV_params->numNonZeroes * sizeof(float) + SPMV_params->numNonZeroes * sizeof(int) + 2*SPMV_params->numRows * sizeof(float) + (SPMV_params->numRows+1) * sizeof(int);
-			printf("SPMV_CSR: SMs %d, MaxBlocks %d, Mem %zu (max %zu aval %zu - %zu)\n", numSMs, maxBlocksPerMulti, memReq/1048576, totalMem/1048576, freeMem/1048576, (freeMem-memReq)/1048576);				
+//			printf("SPMV_CSR: SMs %d, MaxBlocks %d, Mem %zu (max %zu aval %zu - %zu)\n", numSMs, maxBlocksPerMulti, memReq/1048576, totalMem/1048576, freeMem/1048576, (freeMem-memReq)/1048576);				
 			}
 			break;
 
@@ -516,7 +517,7 @@ cudaOccupancyMaxActiveBlocksPerMultiprocessor( &maxBlocksPerMulti,
 											   k_stub->kconf.blocksize.x,
 											   0);
 					size_t memReq = reduction_params->size*sizeof(float) + k_stub->kconf.gridsize.x*sizeof(float);
-					printf("Reduce: SMs %d, MaxBlocks %d, Mem %zu (max %zu aval %zu - %zu)\n", numSMs, maxBlocksPerMulti, memReq/1048576, totalMem/1048576, freeMem/1048576, (freeMem-memReq)/1048576);				
+//					printf("Reduce: SMs %d, MaxBlocks %d, Mem %zu (max %zu aval %zu - %zu)\n", numSMs, maxBlocksPerMulti, memReq/1048576, totalMem/1048576, freeMem/1048576, (freeMem-memReq)/1048576);				
 			} 
 			else{
 
@@ -545,7 +546,7 @@ cudaOccupancyMaxActiveBlocksPerMultiprocessor( &maxBlocksPerMulti,
 					k_stub->total_tasks =  k_stub->kconf.gridsize.x;
 
 					size_t memReq = reduction_params->size*sizeof(float) + k_stub->kconf.gridsize.x*sizeof(float);
-					printf("Reduce: SMs %d, MaxBlocks %d, Mem %zu (max %zu aval %zu - %zu)\n", numSMs, maxBlocksPerMulti, memReq/1048576, totalMem/1048576, freeMem/1048576, (freeMem-memReq)/1048576);				
+//					printf("Reduce: SMs %d, MaxBlocks %d, Mem %zu (max %zu aval %zu - %zu)\n", numSMs, maxBlocksPerMulti, memReq/1048576, totalMem/1048576, freeMem/1048576, (freeMem-memReq)/1048576);				
 
 				}
 				else{
@@ -640,7 +641,7 @@ cudaOccupancyMaxActiveBlocksPerMultiprocessor( &maxBlocksPerMulti,
 											   k_stub->kconf.blocksize.x,
 											   0);
 						size_t memReq = 3*PF_params->nCols*sizeof(int);
-						printf("PF: SMs %d, MaxBlocks %d, Mem %zu (max %zu aval %zu - %zu)\n", numSMs, maxBlocksPerMulti, memReq/1048576, totalMem/1048576, freeMem/1048576, (freeMem-memReq)/1048576);				
+//						printf("PF: SMs %d, MaxBlocks %d, Mem %zu (max %zu aval %zu - %zu)\n", numSMs, maxBlocksPerMulti, memReq/1048576, totalMem/1048576, freeMem/1048576, (freeMem-memReq)/1048576);				
 					}
 					else{
 
@@ -661,7 +662,7 @@ cudaOccupancyMaxActiveBlocksPerMultiprocessor( &maxBlocksPerMulti,
 							k_stub->kconf.coarsening = 1;						
 
 							size_t memReq = 3*PF_params->nCols*sizeof(int);
-							printf("PF: SMs %d, MaxBlocks %d, Mem %zu (max %zu aval %zu - %zu)\n", numSMs, maxBlocksPerMulti, memReq/1048576, totalMem/1048576, freeMem/1048576, (freeMem-memReq)/1048576);				
+//							printf("PF: SMs %d, MaxBlocks %d, Mem %zu (max %zu aval %zu - %zu)\n", numSMs, maxBlocksPerMulti, memReq/1048576, totalMem/1048576, freeMem/1048576, (freeMem-memReq)/1048576);				
 						}
 						else{
 							printf("Error: Unknown device\n");
@@ -744,19 +745,22 @@ cudaOccupancyMaxActiveBlocksPerMultiprocessor( &maxBlocksPerMulti,
 											   k_stub->kconf.blocksize.x,
 											   0);
 						size_t memReq = 3*CONV_params->conv_rows*CONV_params->conv_cols*sizeof(float);
-						printf("RCONV: SMs %d, MaxBlocks %d, Mem %zu (max %zu aval %zu - %zu)\n", numSMs, maxBlocksPerMulti, memReq/1048576, totalMem/1048576, freeMem/1048576, (freeMem-memReq)/1048576);				
+//						printf("RCONV: SMs %d, MaxBlocks %d, Mem %zu (max %zu aval %zu - %zu)\n", numSMs, maxBlocksPerMulti, memReq/1048576, totalMem/1048576, freeMem/1048576, (freeMem-memReq)/1048576);				
 					}
 					else{
 
 						if (strcmp(device_name, "TITAN V") == 0) {
-							k_stub->kconf.coarsening = 16;
+
+			CONV_params->conv_rows=3072;
+			CONV_params->conv_cols=3072;
+							k_stub->kconf.coarsening = 1;
 							k_stub->kconf.numSMs = numSMs;
 							k_stub->kconf.blocksize.x = 16;
 							k_stub->kconf.blocksize.y = 4;
 cudaOccupancyMaxActiveBlocksPerMultiprocessor( &maxBlocksPerMulti,
 											   original_rowsConvolutionCUDA,
 											   k_stub->kconf.blocksize.x,
-											   0);
+											   2560);
 							k_stub->kconf.max_persistent_blocks = maxBlocksPerMulti;
 							k_stub->kconf.gridsize.x = CONV_params->conv_cols / (8 * k_stub->kconf.blocksize.x * k_stub->kconf.coarsening );
 							k_stub->kconf.gridsize.y = CONV_params->conv_rows / k_stub->kconf.blocksize.y;
@@ -765,7 +769,7 @@ cudaOccupancyMaxActiveBlocksPerMultiprocessor( &maxBlocksPerMulti,
 							CONV_params->gridDimY[0] = k_stub->kconf.gridsize.y;
 
 							size_t memReq = 3*CONV_params->conv_rows*CONV_params->conv_cols*sizeof(float);
-							printf("RCONV: SMs %d, MaxBlocks %d, Mem %zu (max %zu aval %zu - %zu)\n", numSMs, maxBlocksPerMulti, memReq/1048576, totalMem/1048576, freeMem/1048576, (freeMem-memReq)/1048576);				
+//							printf("RCONV: SMs %d, MaxBlocks %d, Mem %zu (max %zu aval %zu - %zu)\n", numSMs, maxBlocksPerMulti, memReq/1048576, totalMem/1048576, freeMem/1048576, (freeMem-memReq)/1048576);				
 
 						}
 						else{
@@ -840,10 +844,11 @@ cudaOccupancyMaxActiveBlocksPerMultiprocessor( &maxBlocksPerMulti,
 											   k_stub->kconf.blocksize.x,
 											   0);
 						size_t memReq = 3*CONV_params->conv_rows*CONV_params->conv_cols*sizeof(float);
-						printf("CCONV: SMs %d, MaxBlocks %d, Mem %zu (max %zu aval %zu - %zu)\n", numSMs, maxBlocksPerMulti, memReq/1048576, totalMem/1048576, freeMem/1048576, (freeMem-memReq)/1048576);				
+//						printf("CCONV: SMs %d, MaxBlocks %d, Mem %zu (max %zu aval %zu - %zu)\n", numSMs, maxBlocksPerMulti, memReq/1048576, totalMem/1048576, freeMem/1048576, (freeMem-memReq)/1048576);				
 					}
 					else{
 						if (strcmp(device_name, "TITAN V") == 0) {
+
 							k_stub->kconf.numSMs = numSMs;
 							k_stub->kconf.blocksize.x = 16;
 							k_stub->kconf.blocksize.y = 8;
@@ -863,7 +868,7 @@ cudaOccupancyMaxActiveBlocksPerMultiprocessor( &maxBlocksPerMulti,
 							CONV_params->gridDimY[1] = k_stub->kconf.gridsize.y ;
 
 							size_t memReq = 3*CONV_params->conv_rows*CONV_params->conv_cols*sizeof(float);
-							printf("CCONV: SMs %d, MaxBlocks %d, Mem %zu (max %zu aval %zu - %zu)\n", numSMs, maxBlocksPerMulti, memReq/1048576, totalMem/1048576, freeMem/1048576, (freeMem-memReq)/1048576);				
+//							printf("CCONV: SMs %d, MaxBlocks %d, Mem %zu (max %zu aval %zu - %zu)\n", numSMs, maxBlocksPerMulti, memReq/1048576, totalMem/1048576, freeMem/1048576, (freeMem-memReq)/1048576);				
 						}
 						else{
 							printf("Error: Unknown device\n");
@@ -967,7 +972,7 @@ cudaOccupancyMaxActiveBlocksPerMultiprocessor( &maxBlocksPerMulti,
 											   k_stub->kconf.blocksize.x,
 											   0);
 						size_t memReq = 3*CEDD_params->nRows*CEDD_params->nCols*sizeof(unsigned char);
-						printf("GCEDD: SMs %d, MaxBlocks %d, Mem %zu (max %zu aval %zu - %zu)\n", numSMs, maxBlocksPerMulti, memReq/1048576, totalMem/1048576, freeMem/1048576, (freeMem-memReq)/1048576);				
+//						printf("GCEDD: SMs %d, MaxBlocks %d, Mem %zu (max %zu aval %zu - %zu)\n", numSMs, maxBlocksPerMulti, memReq/1048576, totalMem/1048576, freeMem/1048576, (freeMem-memReq)/1048576);				
 					}
 					else{
 						if (strcmp(device_name, "TITAN V") == 0) {
@@ -991,7 +996,7 @@ cudaOccupancyMaxActiveBlocksPerMultiprocessor( &maxBlocksPerMulti,
 							k_stub->total_tasks = k_stub->kconf.gridsize.x;
 
 							size_t memReq = 3*CEDD_params->nRows*CEDD_params->nCols*sizeof(unsigned char);
-							printf("GCEDD: SMs %d, MaxBlocks %d, Mem %zu (max %zu aval %zu - %zu)\n", numSMs, maxBlocksPerMulti, memReq/1048576, totalMem/1048576, freeMem/1048576, (freeMem-memReq)/1048576);				
+//							printf("GCEDD: SMs %d, MaxBlocks %d, Mem %zu (max %zu aval %zu - %zu)\n", numSMs, maxBlocksPerMulti, memReq/1048576, totalMem/1048576, freeMem/1048576, (freeMem-memReq)/1048576);				
 
 						}
 						else{
@@ -1080,7 +1085,7 @@ cudaOccupancyMaxActiveBlocksPerMultiprocessor( &maxBlocksPerMulti,
 											   k_stub->kconf.blocksize.x,
 											   0);
 							k_stub->kconf.max_persistent_blocks = maxBlocksPerMulti;
-							printf("SCEDD: SMs %d, MaxBlocks %d\n", numSMs, maxBlocksPerMulti);
+//							printf("SCEDD: SMs %d, MaxBlocks %d\n", numSMs, maxBlocksPerMulti);
 						CEDD_params->gridDimX = (CEDD_params->nCols - 2)/k_stub->kconf.blocksize.x; // Add information loss during linearization
 						CEDD_params->gridDimY = (CEDD_params->nRows - 2)/k_stub->kconf.blocksize.y;
 						k_stub->kconf.gridsize.x = CEDD_params->gridDimX * CEDD_params->gridDimY;
@@ -1174,7 +1179,7 @@ cudaOccupancyMaxActiveBlocksPerMultiprocessor( &maxBlocksPerMulti,
 											   k_stub->kconf.blocksize.x,
 											   0);
 							k_stub->kconf.max_persistent_blocks = maxBlocksPerMulti;
-							printf("NCEDD: SMs %d, MaxBlocks %d\n", numSMs, maxBlocksPerMulti);
+//							printf("NCEDD: SMs %d, MaxBlocks %d\n", numSMs, maxBlocksPerMulti);
 							CEDD_params->gridDimX = (CEDD_params->nCols - 2)/k_stub->kconf.blocksize.x; // Add information loss during linearization
 							CEDD_params->gridDimY = (CEDD_params->nRows - 2)/k_stub->kconf.blocksize.y;
 							k_stub->kconf.gridsize.x = CEDD_params->gridDimX * CEDD_params->gridDimY;
@@ -1269,7 +1274,7 @@ cudaOccupancyMaxActiveBlocksPerMultiprocessor( &maxBlocksPerMulti,
 											   k_stub->kconf.blocksize.x,
 											   0);
 							k_stub->kconf.max_persistent_blocks = maxBlocksPerMulti;
-							printf("HCEDD: SMs %d, MaxBlocks %d\n", numSMs, maxBlocksPerMulti);
+//							printf("HCEDD: SMs %d, MaxBlocks %d\n", numSMs, maxBlocksPerMulti);
 							CEDD_params->gridDimX = (CEDD_params->nCols - 2)/k_stub->kconf.blocksize.x; // Add information loss during linearization
 							CEDD_params->gridDimY = (CEDD_params->nRows - 2)/k_stub->kconf.blocksize.y;
 							k_stub->kconf.gridsize.x = CEDD_params->gridDimX * CEDD_params->gridDimY;
@@ -1369,7 +1374,7 @@ cudaOccupancyMaxActiveBlocksPerMultiprocessor( &maxBlocksPerMulti,
 											   k_stub->kconf.blocksize.x,
 											   0);
 						size_t memReq = HST256_params->byteCount256 + 256*sizeof(uint);
-						printf("HST256: SMs %d, MaxBlocks %d, Mem %zu (max %zu aval %zu - %zu)\n", numSMs, maxBlocksPerMulti, memReq/1048576, totalMem/1048576, freeMem/1048576, (freeMem-memReq)/1048576);				
+//						printf("HST256: SMs %d, MaxBlocks %d, Mem %zu (max %zu aval %zu - %zu)\n", numSMs, maxBlocksPerMulti, memReq/1048576, totalMem/1048576, freeMem/1048576, (freeMem-memReq)/1048576);				
 					}
 					else{
 						if (strcmp(device_name, "TITAN V") == 0) {
@@ -1388,7 +1393,7 @@ cudaOccupancyMaxActiveBlocksPerMultiprocessor( &maxBlocksPerMulti,
 cudaOccupancyMaxActiveBlocksPerMultiprocessor( &maxBlocksPerMulti,
 											   original_histogram256CUDA,
 											   k_stub->kconf.blocksize.x,
-											   0);
+											   8192);
 							k_stub->kconf.max_persistent_blocks = maxBlocksPerMulti;
 							k_stub->kconf.coarsening = 128; // Ojo coarsening tienen que ser 1 para prubas con slicing (cCUDA)
 							//k_stub->kconf.gridsize.x  = HST256_params->byteCount256 / (sizeof(uint) * k_stub->kconf.coarsening * k_stub->kconf.blocksize.x);
@@ -1400,7 +1405,7 @@ cudaOccupancyMaxActiveBlocksPerMultiprocessor( &maxBlocksPerMulti,
 							//k_stub->total_tasks = (64 * 1048576)/k_stub->kconf.blocksize.x + (((64 * 1048576)%k_stub->kconf.blocksize.x==0)?0:1);
 
 							size_t memReq = HST256_params->byteCount256 + 256*sizeof(uint);
-							printf("HST256: SMs %d, MaxBlocks %d, Mem %zu (max %zu aval %zu - %zu)\n", numSMs, maxBlocksPerMulti, memReq/1048576, totalMem/1048576, freeMem/1048576, (freeMem-memReq)/1048576);				
+//							printf("HST256: SMs %d, MaxBlocks %d, Mem %zu (max %zu aval %zu - %zu)\n", numSMs, maxBlocksPerMulti, memReq/1048576, totalMem/1048576, freeMem/1048576, (freeMem-memReq)/1048576);				
 
 						}
 						else{
@@ -1418,7 +1423,7 @@ cudaOccupancyMaxActiveBlocksPerMultiprocessor( &maxBlocksPerMulti,
 			return -1;
 	}
 	 
-	 printf("Grid %d, %d - Block %d, %d\n", k_stub->kconf.gridsize.x, k_stub->kconf.gridsize.y, k_stub->kconf.blocksize.x, k_stub->kconf.blocksize.y);
+//	 printf("Grid %d, %d - Block %d, %d\n", k_stub->kconf.gridsize.x, k_stub->kconf.gridsize.y, k_stub->kconf.blocksize.x, k_stub->kconf.blocksize.y);
 	// Allocate task support on CPU memory (pinned memory)
 	checkCudaErrors(cudaHostAlloc((void **)&(k_stub->h_state), sizeof(State) * MAX_STREAMS_PER_KERNEL, cudaHostAllocDefault)); // In Pinned memory
 	for (int i=0; i<MAX_STREAMS_PER_KERNEL; i++)
@@ -1556,13 +1561,13 @@ int create_stubinfo_with_params(t_kernel_stub **stub, int deviceId, t_Kernel id,
 cudaOccupancyMaxActiveBlocksPerMultiprocessor( &maxBlocksPerMulti,
 											   original_colsConvolutionCUDA,
 											   k_stub->kconf.blocksize.x,
-											   0);
+											   5184);
 							if ( maxBlocksPerMulti > 16 )
 								k_stub->kconf.max_persistent_blocks = 16;
 							else
 								k_stub->kconf.max_persistent_blocks = maxBlocksPerMulti;
-							printf("CCONV: SMs %d, MaxBlocks %d\n", numSMs, maxBlocksPerMulti);
-						k_stub->kconf.coarsening = 4; 
+//							printf("CCONV: SMs %d, MaxBlocks %d\n", numSMs, maxBlocksPerMulti);
+						k_stub->kconf.coarsening = 1; 
 						k_stub->kconf.gridsize.x = CONV_params->conv_cols / (k_stub->kconf.blocksize.x);
 						k_stub->kconf.gridsize.y = CONV_params->conv_rows / ( 8 * k_stub->kconf.blocksize.y) ;
 						k_stub->total_tasks = k_stub->kconf.gridsize.x * k_stub->kconf.gridsize.y / k_stub->kconf.coarsening;
@@ -1660,7 +1665,7 @@ cudaOccupancyMaxActiveBlocksPerMultiprocessor( &maxBlocksPerMulti,
 											   k_stub->kconf.blocksize.x,
 											   0);
 							k_stub->kconf.max_persistent_blocks = maxBlocksPerMulti;
-							printf("SCEDD: SMs %d, MaxBlocks %d\n", numSMs, maxBlocksPerMulti);
+//							printf("SCEDD: SMs %d, MaxBlocks %d\n", numSMs, maxBlocksPerMulti);
 						k_stub->kconf.coarsening = 16;
 						//CEDD_params->gridDimX = (CEDD_params->nCols - 2)/(k_stub->kconf.blocksize.x *  k_stub->kconf.coarsening); // Add information loss during linearization
 						CEDD_params->gridDimX = (CEDD_params->nCols-2)/(k_stub->kconf.blocksize.x * k_stub->kconf.coarsening);
@@ -1760,7 +1765,7 @@ cudaOccupancyMaxActiveBlocksPerMultiprocessor( &maxBlocksPerMulti,
 											   k_stub->kconf.blocksize.x,
 											   0);
 							k_stub->kconf.max_persistent_blocks = maxBlocksPerMulti;
-							printf("NCEDD: SMs %d, MaxBlocks %d\n", numSMs, maxBlocksPerMulti);
+//							printf("NCEDD: SMs %d, MaxBlocks %d\n", numSMs, maxBlocksPerMulti);
 							k_stub->kconf.coarsening = 16;
 							//CEDD_params->gridDimX = (CEDD_params->nCols - 2)/(k_stub->kconf.blocksize.x *  k_stub->kconf.coarsening);
 							CEDD_params->gridDimX = (CEDD_params->nCols - 2)/(k_stub->kconf.blocksize.x * k_stub->kconf.coarsening);
@@ -1858,7 +1863,7 @@ cudaOccupancyMaxActiveBlocksPerMultiprocessor( &maxBlocksPerMulti,
 											   k_stub->kconf.blocksize.x,
 											   0);
 							k_stub->kconf.max_persistent_blocks = maxBlocksPerMulti;
-							printf("HCEDD: SMs %d, MaxBlocks %d\n", numSMs, maxBlocksPerMulti);
+//							printf("HCEDD: SMs %d, MaxBlocks %d\n", numSMs, maxBlocksPerMulti);
 							k_stub->kconf.coarsening = 16;
 							//CEDD_params->gridDimX = (CEDD_params->nCols - 2)/(k_stub->kconf.blocksize.x *  k_stub->kconf.coarsening);
 							CEDD_params->gridDimX = (CEDD_params->nCols - 2)/(k_stub->kconf.blocksize.x * k_stub->kconf.coarsening);

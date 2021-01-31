@@ -387,11 +387,11 @@ int launch_improved_cCuda(t_kernel_stub **kstub, int max_ctas[2])
 
     int f0, f1;
     if (max_ctas[0] >= max_ctas[1]){
-        f0 = round(max_ctas[0]/max_ctas[1]);
+        f0 = round((double)max_ctas[0]/max_ctas[1]);
         f1 = 1;
     }
     else {
-        f1 = round(max_ctas[1]/max_ctas[0]);
+        f1 = round((double)max_ctas[1]/max_ctas[0]);
         f0 = 1;
     }
     
