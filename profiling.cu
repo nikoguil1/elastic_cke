@@ -390,8 +390,16 @@ int smk_check_CTA_allocation(t_Kernel *kid, int num_kernels, int deviceId)
 	cudaSetDevice(deviceId);
 	cudaDeviceProp deviceProp;
     cudaGetDeviceProperties(&deviceProp, deviceId);	
-	printf("Device=%s\n", deviceProp.name);
-	int numSMs = 28;
+	char *device_name = deviceProp.name;
+	printf("Device=%s\n", device_name);
+	
+	int numSMs;
+	
+	if(strcmp(device_name, "TITAN X (Pascal)") == 0){
+		numSMs = 28;
+	} else if(strcmp(device_name, "TITAN V") == 0){
+		numSMs = 80;
+	}
 	
 	// Load SMK initial tables
 	smk_fill_coBlocks();
@@ -489,8 +497,16 @@ int all_profiling(t_Kernel *kid, int num_kernels, int deviceId)
 	cudaSetDevice(deviceId);
 	cudaDeviceProp deviceProp;
     cudaGetDeviceProperties(&deviceProp, deviceId);	
-	printf("Device=%s\n", deviceProp.name);
-	int numSMs = 28;
+	char *device_name = deviceProp.name;
+	printf("Device=%s\n", device_name);
+	
+	int numSMs;
+	
+	if(strcmp(device_name, "TITAN X (Pascal)") == 0){
+		numSMs = 28;
+	} else if(strcmp(device_name, "TITAN V") == 0){
+		numSMs = 80;
+	}
 	
 	// Load SMK initial tables
 	smk_fill_coBlocks();

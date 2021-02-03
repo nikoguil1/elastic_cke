@@ -24,7 +24,7 @@ int GCEDD_start_transfers(void *arg);
 
 __global__ void
 original_gaussianCannyCUDA(unsigned char *data_CEDD, unsigned char *out_CEDD, int rows_CEDD, int cols_CEDD, 
-						int gridDimY);
+						int gridDimY, int iter_per_subtask);
 
 //Sobel
 int launch_preemp_SCEDD(void *kstub);
@@ -36,7 +36,7 @@ int SCEDD_start_mallocs(void *arg);
 int SCEDD_start_transfers(void *arg);
 
 __global__ void
-original_sobelCannyCUDA(unsigned char *data_CEDD, unsigned char *out_CEDD, unsigned char *theta_CEDD, int rows_CEDD, int cols_CEDD);
+original_sobelCannyCUDA(unsigned char *data_CEDD, unsigned char *out_CEDD, unsigned char *theta_CEDD, int rows_CEDD, int cols_CEDD, int iter_per_subtask);
 
 //Non max supp
 int launch_preemp_NCEDD(void *kstub);
@@ -48,7 +48,7 @@ int NCEDD_start_mallocs(void *arg);
 int NCEDD_start_transfers(void *arg);
 
 __global__ void
-original_nonCannyCUDA(unsigned char *data_CEDD, unsigned char *out_CEDD, unsigned char *theta_CEDD, int rows_CEDD, int cols_CEDD);
+original_nonCannyCUDA(unsigned char *data_CEDD, unsigned char *out_CEDD, unsigned char *theta_CEDD, int rows_CEDD, int cols_CEDD, int iter_per_subtask);
 
 //Hyst
 int launch_preemp_HCEDD(void *kstub);
@@ -60,7 +60,7 @@ int HCEDD_start_mallocs(void *arg);
 int HCEDD_start_transfers(void *arg);
 
 __global__ void
-original_hystCannyCUDA(unsigned char *data_CEDD, unsigned char *out_CEDD, int rows_CEDD, int cols_CEDD);
+original_hystCannyCUDA(unsigned char *data_CEDD, unsigned char *out_CEDD, int rows_CEDD, int cols_CEDD, int iter_per_subtask);
 
 //CPU
 void run_cpu_threads(unsigned char *buffer0, unsigned char *buffer1, unsigned char *theta, int rows, int cols, int num_threads, int t_index);

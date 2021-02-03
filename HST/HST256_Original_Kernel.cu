@@ -853,7 +853,7 @@ int launch_orig_HST256(void *arg)
 	t_kernel_stub *kstub = (t_kernel_stub *)arg;
 	t_HST256_params * params = (t_HST256_params *)kstub->params;
 	
-	for ( int i = 0; i < kstub->kconf.coarsening; i++ )
+	//for ( int i = 0; i < kstub->kconf.coarsening; i++ )
 		original_histogram256CUDA<<<kstub->kconf.gridsize.x, kstub->kconf.blocksize.x, params->histogram256_threadblock_memory * sizeof(uint)>>>(
 			params->d_PartialHistograms256,
 			(uint *)params->d_Data256,

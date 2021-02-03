@@ -804,25 +804,26 @@ int main(int argc, char **argv)
 	return 0;
  */
 
-	kid[0]=VA;
+	//kid[0]=VA;
+	kid[0]=GCEDD;
 	kid[1]=MM;
 	kid[2]=BS;
 	kid[3]=Reduction;
 	kid[4]=PF;
-	kid[5]=GCEDD; // Ojo: en profiling.cu se procesan tambien los tres kernels restantes de la aplicacion
+	kid[5]=HST256; // Ojo: en profiling.cu se procesan tambien los tres kernels restantes de la aplicacion
 	kid[6]=SPMV_CSRscalar;
 	kid[7]=RCONV; // Ojo: en profiling se procesa tambien CCONV
-	kid[8]=HST256;
+	kid[8]=GCEDD;
 
 	if ( argc > 2 ) kid[0] = kid_from_name(argv[2]);
 	if ( argc > 3 )	kid[1] = kid_from_name(argv[3]);
 
 	// check memory limits and latency of a kernel
-	profileFull(kid[0], deviceId);
-	return 0;
+	// profileFull(kid[0], deviceId);
+	// return 0;
 
 	//online_profiler_overhead(kid, 7/*num_kernels*/, 2); // SPMV y RCONV dan problemas por 
-	all_profiling(kid, 3/*num_kernels*/, 0);
+	all_profiling(kid, 1/*num_kernels*/, deviceId);
 
 	
 	//smk_check_CTA_allocation(kid, 2, 2);
