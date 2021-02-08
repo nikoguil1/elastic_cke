@@ -805,7 +805,7 @@ int main(int argc, char **argv)
  */
 
 	//kid[0]=VA;
-	kid[0]=GCEDD;
+	kid[0]=RCONV;
 	kid[1]=MM;
 	kid[2]=BS;
 	kid[3]=Reduction;

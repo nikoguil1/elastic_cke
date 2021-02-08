@@ -752,10 +752,10 @@ cudaOccupancyMaxActiveBlocksPerMultiprocessor( &maxBlocksPerMulti,
 					else{
 
 						if (strcmp(device_name, "TITAN V") == 0) {
-
+							k_stub->kconf.coarsening = 16;
 							CONV_params->conv_rows=3072;
-							CONV_params->conv_cols=3072 * k_stub->kconf.coarsening;;
-							k_stub->kconf.coarsening = 1;
+							CONV_params->conv_cols=3072 * k_stub->kconf.coarsening;
+							k_stub->kconf.coarsening = 3;
 							k_stub->kconf.numSMs = 80;
 							k_stub->kconf.blocksize.x = 16;
 							k_stub->kconf.blocksize.y = 4;
@@ -1188,7 +1188,7 @@ cudaOccupancyMaxActiveBlocksPerMultiprocessor( &maxBlocksPerMulti,
 							k_stub->kconf.gridsize.x = CEDD_params->gridDimX * CEDD_params->gridDimY;
 							k_stub->kconf.gridsize.y = 1; //Grid Linearization
 							k_stub->total_tasks = k_stub->kconf.gridsize.x;
-							k_stub->kconf.coarsening = 16;
+							k_stub->kconf.coarsening = 14;
 						}
 						else{
 								printf("Error: Unknown device\n");
@@ -1769,7 +1769,7 @@ cudaOccupancyMaxActiveBlocksPerMultiprocessor( &maxBlocksPerMulti,
 											   0);
 							k_stub->kconf.max_persistent_blocks = maxBlocksPerMulti;
 //							printf("NCEDD: SMs %d, MaxBlocks %d\n", numSMs, maxBlocksPerMulti);
-							k_stub->kconf.coarsening = 16;
+							k_stub->kconf.coarsening = 14;
 							//CEDD_params->gridDimX = (CEDD_params->nCols - 2)/(k_stub->kconf.blocksize.x *  k_stub->kconf.coarsening);
 							CEDD_params->gridDimX = (CEDD_params->nCols - 2)/(k_stub->kconf.blocksize.x * k_stub->kconf.coarsening);
 							CEDD_params->gridDimY = (CEDD_params->nRows - 2)/k_stub->kconf.blocksize.y;
