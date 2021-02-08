@@ -41,7 +41,7 @@ int RCONV_start_mallocs(void *arg);
 int RCONV_start_transfers(void *arg);
 
 __global__ void
-original_rowsConvolutionCUDA(float *d_Dst_p, float *d_Src_p, int imageW, int imageH, int pitch);
+original_rowsConvolutionCUDA(float *d_Dst_p, float *d_Src_p, int imageW, int imageH, int pitch, int gridDimX, int gridDimY, int iter_per_subtask);
 
 //Cols
 int launch_preemp_CCONV(void *kstub);
@@ -55,4 +55,4 @@ int CCONV_start_mallocs(void *arg);
 int CCONV_start_transfers(void *arg);
 
 __global__ void
-original_colsConvolutionCUDA(float *d_Dst, float *d_Src, int imageW, int imageH, int pitch);
+original_colsConvolutionCUDA(float *d_Dst, float *d_Src, int imageW, int imageH, int pitch, int gridDimX, int gridDimY, int iter_per_subtask);

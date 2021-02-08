@@ -50,61 +50,71 @@ void setConvolutionKernel(float *h_Kernel)
  * Rows Convolution Separable (CUDA Kernel)
  */
 __global__ void
-original_rowsConvolutionCUDA(float *d_Dst_p, float *d_Src_p, int imageW, int imageH, int pitch)
+original_rowsConvolutionCUDA(float *d_Dst_p, float *d_Src_p, int imageW, int imageH, int pitch,
+							int gridDimX, int gridDimY, int iter_per_subtask)
 {
 	__shared__ float s_Data[ROWS_BLOCKDIM_Y][(ROWS_RESULT_STEPS + 2 * ROWS_HALO_STEPS) * ROWS_BLOCKDIM_X];
-
-	//Offset to the left halo edge
-	const int baseX = (blockIdx.x * ROWS_RESULT_STEPS - ROWS_HALO_STEPS) * ROWS_BLOCKDIM_X + threadIdx.x;
-	const int baseY = blockIdx.y * ROWS_BLOCKDIM_Y + threadIdx.y;	
-	// const int baseX = ((blockIdx.x / gridDimY)* ROWS_RESULT_STEPS - ROWS_HALO_STEPS) * ROWS_BLOCKDIM_X + threadIdx.x;
-	// const int baseY = (blockIdx.x % gridDimY) * ROWS_BLOCKDIM_Y + threadIdx.y;
-	float *d_Src, *d_Dst;
-	//d_Src += baseY * pitch + baseX;
-	//d_Dst += baseY * pitch + baseX;
 	
-	d_Src = d_Src_p + baseY * pitch + baseX;
-	d_Dst = d_Dst_p + baseY * pitch + baseX;
-	//Load main data
-	#pragma unroll
+	int bid = (blockIdx.y + blockIdx.x * gridDimY) % ((gridDimX * gridDimY) / iter_per_subtask);
+		
+	for(int iter = 0; iter < iter_per_subtask; iter++){
+		
+		float *d_Src, *d_Dst;
 
-	for (int i = ROWS_HALO_STEPS; i < ROWS_HALO_STEPS + ROWS_RESULT_STEPS; i++)
-	{
-		s_Data[threadIdx.y][threadIdx.x + i * ROWS_BLOCKDIM_X] = d_Src[i * ROWS_BLOCKDIM_X];
-	}
+		//Offset to the left halo edge
+		
+		//const int baseX = (((s_bid + iter * blockDim.x) / gridDimY)* ROWS_RESULT_STEPS - ROWS_HALO_STEPS) * ROWS_BLOCKDIM_X + threadIdx.x;
+		//const int baseY = ((s_bid + iter * blockDim.x) - ((s_bid / gridDimY) * gridDimY)) * ROWS_BLOCKDIM_Y + threadIdx.y;
+		
+		int row = (bid * iter_per_subtask + iter ) % gridDimY;
+		int col = (bid * iter_per_subtask + iter ) / gridDimY;  
+		
+		const int baseX = (col * ROWS_RESULT_STEPS - ROWS_HALO_STEPS) * ROWS_BLOCKDIM_X + threadIdx.x;
+		const int baseY = row * ROWS_BLOCKDIM_Y + threadIdx.y;	
 
-	//Load left halo
-	#pragma unroll
-
-	for (int i = 0; i < ROWS_HALO_STEPS; i++)
-	{
-		s_Data[threadIdx.y][threadIdx.x + i * ROWS_BLOCKDIM_X] = (baseX >= -i * ROWS_BLOCKDIM_X) ? d_Src[i * ROWS_BLOCKDIM_X] : 0;
-	}
-
-	//Load right halo
-	#pragma unroll
-
-	for (int i = ROWS_HALO_STEPS + ROWS_RESULT_STEPS; i < ROWS_HALO_STEPS + ROWS_RESULT_STEPS + ROWS_HALO_STEPS; i++)
-	{
-		s_Data[threadIdx.y][threadIdx.x + i * ROWS_BLOCKDIM_X] = (imageW - baseX > i * ROWS_BLOCKDIM_X) ? d_Src[i * ROWS_BLOCKDIM_X] : 0;
-	}
-
-	//Compute and store results
-	__syncthreads();
-	#pragma unroll
-
-	for (int i = ROWS_HALO_STEPS; i < ROWS_HALO_STEPS + ROWS_RESULT_STEPS; i++)
-	{
-		float sum = 0;
+		d_Src = d_Src_p + baseY * pitch + baseX;
+		d_Dst = d_Dst_p + baseY * pitch + baseX;
 
 		#pragma unroll
 
-		for (int j = -KERNEL_RADIUS; j <= KERNEL_RADIUS; j++)
+		for (int i = ROWS_HALO_STEPS; i < ROWS_HALO_STEPS + ROWS_RESULT_STEPS; i++)
 		{
-			sum += c_Kernel[KERNEL_RADIUS - j] * s_Data[threadIdx.y][threadIdx.x + i * ROWS_BLOCKDIM_X + j];
+			s_Data[threadIdx.y][threadIdx.x + i * ROWS_BLOCKDIM_X] = d_Src[i * ROWS_BLOCKDIM_X];
 		}
 
-		d_Dst[i * ROWS_BLOCKDIM_X] = sum;
+		//Load left halo
+		#pragma unroll
+
+		for (int i = 0; i < ROWS_HALO_STEPS; i++)
+		{
+			s_Data[threadIdx.y][threadIdx.x + i * ROWS_BLOCKDIM_X] = (baseX >= -i * ROWS_BLOCKDIM_X) ? d_Src[i * ROWS_BLOCKDIM_X] : 0;
+		}
+
+		//Load right halo
+		#pragma unroll
+
+		for (int i = ROWS_HALO_STEPS + ROWS_RESULT_STEPS; i < ROWS_HALO_STEPS + ROWS_RESULT_STEPS + ROWS_HALO_STEPS; i++)
+		{
+			s_Data[threadIdx.y][threadIdx.x + i * ROWS_BLOCKDIM_X] = (imageW - baseX > i * ROWS_BLOCKDIM_X) ? d_Src[i * ROWS_BLOCKDIM_X] : 0;
+		}
+
+		//Compute and store results
+		__syncthreads();
+		#pragma unroll
+
+		for (int i = ROWS_HALO_STEPS; i < ROWS_HALO_STEPS + ROWS_RESULT_STEPS; i++)
+		{
+			float sum = 0;
+
+			#pragma unroll
+
+			for (int j = -KERNEL_RADIUS; j <= KERNEL_RADIUS; j++)
+			{
+				sum += c_Kernel[KERNEL_RADIUS - j] * s_Data[threadIdx.y][threadIdx.x + i * ROWS_BLOCKDIM_X + j];
+			}
+
+			d_Dst[i * ROWS_BLOCKDIM_X] = sum;
+		}
 	}
 }
 
@@ -302,7 +312,7 @@ profiling_rowsConvolutionCUDA(float *d_Dst, float *d_Src, int imageW, int imageH
 
 __global__ void
 SMT_rowsConvolutionCUDA(float *d_Dst_p, float *d_Src_p, int imageW, int imageH, int pitch,
-					int gridDimX,
+					int gridDimX, int gridDimY,
 					int SIMD_min, int SIMD_max,
 					int num_subtask, int iter_per_subtask, int *cont_subtask, State *status)
 {
@@ -337,6 +347,8 @@ SMT_rowsConvolutionCUDA(float *d_Dst_p, float *d_Src_p, int imageW, int imageH, 
 			return;
 		}
 		
+		int bid = s_bid % ((gridDimX * gridDimY) / iter_per_subtask);
+		
 		for(int iter = 0; iter < iter_per_subtask; iter++){
 			
 			float *d_Src, *d_Dst;
@@ -346,8 +358,8 @@ SMT_rowsConvolutionCUDA(float *d_Dst_p, float *d_Src_p, int imageW, int imageH, 
 			//const int baseX = (((s_bid + iter * blockDim.x) / gridDimY)* ROWS_RESULT_STEPS - ROWS_HALO_STEPS) * ROWS_BLOCKDIM_X + threadIdx.x;
 			//const int baseY = ((s_bid + iter * blockDim.x) - ((s_bid / gridDimY) * gridDimY)) * ROWS_BLOCKDIM_Y + threadIdx.y;
 			
-			int row = (s_bid * iter_per_subtask + iter ) / gridDimX;
-			int col = (s_bid * iter_per_subtask + iter ) - col * gridDimX;  
+			int row = (bid * iter_per_subtask + iter ) % gridDimY;
+			int col = (bid * iter_per_subtask + iter ) / gridDimY;  
 			
 			const int baseX = (col * ROWS_RESULT_STEPS - ROWS_HALO_STEPS) * ROWS_BLOCKDIM_X + threadIdx.x;
 			const int baseY = row * ROWS_BLOCKDIM_Y + threadIdx.y;	
@@ -355,7 +367,6 @@ SMT_rowsConvolutionCUDA(float *d_Dst_p, float *d_Src_p, int imageW, int imageH, 
 			d_Src = d_Src_p + baseY * pitch + baseX;
 			d_Dst = d_Dst_p + baseY * pitch + baseX;
 
-			//Load main data
 			#pragma unroll
 
 			for (int i = ROWS_HALO_STEPS; i < ROWS_HALO_STEPS + ROWS_RESULT_STEPS; i++)
@@ -563,7 +574,8 @@ memaddr_SMT_rowsConvolutionCUDA(float *d_Dst_p, float *d_Src_p, int imageW, int 
 }
 
 __global__ void
-SMK_rowsConvolutionCUDA(float *d_Dst, float *d_Src, int imageW, int imageH, int pitch,
+SMK_rowsConvolutionCUDA(float *d_Dst_p, float *d_Src_p, int imageW, int imageH, int pitch,
+					int gridDimX,
 					int gridDimY,
 					int max_blocks_per_SM,
 					int num_subtask,
@@ -573,6 +585,7 @@ SMK_rowsConvolutionCUDA(float *d_Dst, float *d_Src, int imageW, int imageH, int 
 					State *status
 )
 {
+	__shared__ float s_Data[ROWS_BLOCKDIM_Y][(ROWS_RESULT_STEPS + 2 * ROWS_HALO_STEPS) * ROWS_BLOCKDIM_X];
 	__shared__ int s_bid, s_index;
 	
 	unsigned int SM_id = get_smid_CONV();
@@ -585,8 +598,8 @@ SMK_rowsConvolutionCUDA(float *d_Dst, float *d_Src, int imageW, int imageH, int 
 	if (s_index > max_blocks_per_SM)
 		return;
 		
-	float *o_Src = d_Src;
-	float *o_Dst = d_Dst;
+	// float *o_Src = d_Src;
+	// float *o_Dst = d_Dst;
 	
 	while (1){
 			
@@ -603,22 +616,26 @@ SMK_rowsConvolutionCUDA(float *d_Dst, float *d_Src, int imageW, int imageH, int 
 		if (s_bid >= num_subtask || s_bid == -1) /* If all subtasks have been executed */
 			return;
 			
-		for(int iter = 0; iter < iter_per_subtask; iter++){
-			d_Src = o_Src;
-			d_Dst = o_Dst;
+		int bid = s_bid % ((gridDimX * gridDimY) / iter_per_subtask);
 		
-			__shared__ float s_Data[ROWS_BLOCKDIM_Y][(ROWS_RESULT_STEPS + 2 * ROWS_HALO_STEPS) * ROWS_BLOCKDIM_X];
+		for(int iter = 0; iter < iter_per_subtask; iter++){
+			
+			float *d_Src, *d_Dst;
 
 			//Offset to the left halo edge
-			// const int baseX = (blockIdx.x * ROWS_RESULT_STEPS - ROWS_HALO_STEPS) * ROWS_BLOCKDIM_X + threadIdx.x;
-			// const int baseY = blockIdx.y * ROWS_BLOCKDIM_Y + threadIdx.y;	
-			const int baseX = ((s_bid / gridDimY)* ROWS_RESULT_STEPS - ROWS_HALO_STEPS) * ROWS_BLOCKDIM_X + threadIdx.x;
-			const int baseY = (s_bid % gridDimY) * ROWS_BLOCKDIM_Y + threadIdx.y;
+			
+			//const int baseX = (((s_bid + iter * blockDim.x) / gridDimY)* ROWS_RESULT_STEPS - ROWS_HALO_STEPS) * ROWS_BLOCKDIM_X + threadIdx.x;
+			//const int baseY = ((s_bid + iter * blockDim.x) - ((s_bid / gridDimY) * gridDimY)) * ROWS_BLOCKDIM_Y + threadIdx.y;
+			
+			int row = (bid * iter_per_subtask + iter ) % gridDimY;
+			int col = (bid * iter_per_subtask + iter ) / gridDimY;  
+			
+			const int baseX = (col * ROWS_RESULT_STEPS - ROWS_HALO_STEPS) * ROWS_BLOCKDIM_X + threadIdx.x;
+			const int baseY = row * ROWS_BLOCKDIM_Y + threadIdx.y;	
 
-			d_Src += baseY * pitch + baseX;
-			d_Dst += baseY * pitch + baseX;
+			d_Src = d_Src_p + baseY * pitch + baseX;
+			d_Dst = d_Dst_p + baseY * pitch + baseX;
 
-			//Load main data
 			#pragma unroll
 
 			for (int i = ROWS_HALO_STEPS; i < ROWS_HALO_STEPS + ROWS_RESULT_STEPS; i++)
@@ -672,9 +689,10 @@ int launch_orig_RCONV(void *arg)
 	dim3 blocks(kstub->kconf.gridsize.x, kstub->kconf.gridsize.y);
     dim3 threads(kstub->kconf.blocksize.x, kstub->kconf.blocksize.y);
 	
-	for ( int i = 0; i < kstub->kconf.coarsening; i++ )
+	//for ( int i = 0; i < kstub->kconf.coarsening; i++ )
 		original_rowsConvolutionCUDA<<<blocks, threads>>>(
-			params->d_Buffer, params->d_Input, imageW, imageH, imageW);
+			params->d_Buffer, params->d_Input, imageW, imageH, imageW,
+			kstub->kconf.gridsize.x, kstub->kconf.gridsize.y, kstub->kconf.coarsening);
 
 	return 0;
 }
@@ -730,6 +748,7 @@ int launch_preemp_RCONV(void *arg)
 		SMT_rowsConvolutionCUDA<<< kstub->kconf.numSMs * kstub->kconf.max_persistent_blocks, threads, 0, *(kstub->execution_s) >>>(
 			params->d_Buffer, params->d_Input, imageW, imageH, imageW,
 			
+			kstub->kconf.gridsize.x,
 			kstub->kconf.gridsize.y,
 			
 			kstub->idSMs[0],
@@ -756,6 +775,7 @@ int launch_preemp_RCONV(void *arg)
 		SMK_rowsConvolutionCUDA<<< kstub->kconf.numSMs * kstub->kconf.max_persistent_blocks, threads, 0, *(kstub->execution_s) >>>(
 			params->d_Buffer, params->d_Input, imageW, imageH, imageW,
 			
+			kstub->kconf.gridsize.x,
 			kstub->kconf.gridsize.y,
 			
 			kstub->num_blocks_per_SM,
@@ -773,57 +793,67 @@ int launch_preemp_RCONV(void *arg)
  * Cols Convolution Separable (CUDA Kernel)
  */
 __global__ void
-original_colsConvolutionCUDA(float *d_Dst, float *d_Src, int imageW, int imageH, int pitch)
+original_colsConvolutionCUDA(float *d_Dst_p, float *d_Src_p, int imageW, int imageH, int pitch,
+							int gridDimX, int gridDimY, int iter_per_subtask)
 {
 	__shared__ float s_Data[COLUMNS_BLOCKDIM_X][(COLUMNS_RESULT_STEPS + 2 * COLUMNS_HALO_STEPS) * COLUMNS_BLOCKDIM_Y + 1];
+	
+	int bid = (blockIdx.y + blockIdx.x * gridDimY) % ((gridDimX * gridDimY) / iter_per_subtask);
+		
+	for(int iter = 0; iter < iter_per_subtask; iter++){
+		float *d_Src, *d_Dst;
+		
+		int row = (bid * iter_per_subtask + iter ) % gridDimX;
+		int col = (bid * iter_per_subtask + iter ) / gridDimX;  
+			
+		//Offset to the upper halo edge
+		const int baseX = col * COLUMNS_BLOCKDIM_X + threadIdx.x;
+		const int baseY = (row * COLUMNS_RESULT_STEPS - COLUMNS_HALO_STEPS) * COLUMNS_BLOCKDIM_Y + threadIdx.y;
+		// const int baseX = (blockIdx.x / gridDimY) * COLUMNS_BLOCKDIM_X + threadIdx.x;
+		// const int baseY = ((blockIdx.x % gridDimY) * COLUMNS_RESULT_STEPS - COLUMNS_HALO_STEPS) * COLUMNS_BLOCKDIM_Y + threadIdx.y;
+		d_Src = d_Src_p + baseY * pitch + baseX;
+		d_Dst = d_Dst_p + baseY * pitch + baseX;
 
-	//Offset to the upper halo edge
-	const int baseX = blockIdx.x * COLUMNS_BLOCKDIM_X + threadIdx.x;
-	const int baseY = (blockIdx.y * COLUMNS_RESULT_STEPS - COLUMNS_HALO_STEPS) * COLUMNS_BLOCKDIM_Y + threadIdx.y;
-	// const int baseX = (blockIdx.x / gridDimY) * COLUMNS_BLOCKDIM_X + threadIdx.x;
-	// const int baseY = ((blockIdx.x % gridDimY) * COLUMNS_RESULT_STEPS - COLUMNS_HALO_STEPS) * COLUMNS_BLOCKDIM_Y + threadIdx.y;
-	d_Src += baseY * pitch + baseX;
-	d_Dst += baseY * pitch + baseX;
-
-	//Main data
-	#pragma unroll
-
-	for (int i = COLUMNS_HALO_STEPS; i < COLUMNS_HALO_STEPS + COLUMNS_RESULT_STEPS; i++)
-	{
-		s_Data[threadIdx.x][threadIdx.y + i * COLUMNS_BLOCKDIM_Y] = d_Src[i * COLUMNS_BLOCKDIM_Y * pitch];
-	}
-
-	//Upper halo
-	#pragma unroll
-
-	for (int i = 0; i < COLUMNS_HALO_STEPS; i++)
-	{
-		s_Data[threadIdx.x][threadIdx.y + i * COLUMNS_BLOCKDIM_Y] = (baseY >= -i * COLUMNS_BLOCKDIM_Y) ? d_Src[i * COLUMNS_BLOCKDIM_Y * pitch] : 0;
-	}
-
-	//Lower halo
-	#pragma unroll
-
-	for (int i = COLUMNS_HALO_STEPS + COLUMNS_RESULT_STEPS; i < COLUMNS_HALO_STEPS + COLUMNS_RESULT_STEPS + COLUMNS_HALO_STEPS; i++)
-	{
-		s_Data[threadIdx.x][threadIdx.y + i * COLUMNS_BLOCKDIM_Y]= (imageH - baseY > i * COLUMNS_BLOCKDIM_Y) ? d_Src[i * COLUMNS_BLOCKDIM_Y * pitch] : 0;
-	}
-
-	//Compute and store results
-	__syncthreads();
-	#pragma unroll
-
-	for (int i = COLUMNS_HALO_STEPS; i < COLUMNS_HALO_STEPS + COLUMNS_RESULT_STEPS; i++)
-	{
-		float sum = 0;
+		//Main data
 		#pragma unroll
 
-		for (int j = -KERNEL_RADIUS; j <= KERNEL_RADIUS; j++)
+		for (int i = COLUMNS_HALO_STEPS; i < COLUMNS_HALO_STEPS + COLUMNS_RESULT_STEPS; i++)
 		{
-			sum += c_Kernel[KERNEL_RADIUS - j] * s_Data[threadIdx.x][threadIdx.y + i * COLUMNS_BLOCKDIM_Y + j];
+			s_Data[threadIdx.x][threadIdx.y + i * COLUMNS_BLOCKDIM_Y] = d_Src[i * COLUMNS_BLOCKDIM_Y * pitch];
 		}
 
-		d_Dst[i * COLUMNS_BLOCKDIM_Y * pitch] = sum;
+		//Upper halo
+		#pragma unroll
+
+		for (int i = 0; i < COLUMNS_HALO_STEPS; i++)
+		{
+			s_Data[threadIdx.x][threadIdx.y + i * COLUMNS_BLOCKDIM_Y] = (baseY >= -i * COLUMNS_BLOCKDIM_Y) ? d_Src[i * COLUMNS_BLOCKDIM_Y * pitch] : 0;
+		}
+
+		//Lower halo
+		#pragma unroll
+
+		for (int i = COLUMNS_HALO_STEPS + COLUMNS_RESULT_STEPS; i < COLUMNS_HALO_STEPS + COLUMNS_RESULT_STEPS + COLUMNS_HALO_STEPS; i++)
+		{
+			s_Data[threadIdx.x][threadIdx.y + i * COLUMNS_BLOCKDIM_Y]= (imageH - baseY > i * COLUMNS_BLOCKDIM_Y) ? d_Src[i * COLUMNS_BLOCKDIM_Y * pitch] : 0;
+		}
+
+		//Compute and store results
+		__syncthreads();
+		#pragma unroll
+
+		for (int i = COLUMNS_HALO_STEPS; i < COLUMNS_HALO_STEPS + COLUMNS_RESULT_STEPS; i++)
+		{
+			float sum = 0;
+			#pragma unroll
+
+			for (int j = -KERNEL_RADIUS; j <= KERNEL_RADIUS; j++)
+			{
+				sum += c_Kernel[KERNEL_RADIUS - j] * s_Data[threadIdx.x][threadIdx.y + i * COLUMNS_BLOCKDIM_Y + j];
+			}
+
+			d_Dst[i * COLUMNS_BLOCKDIM_Y * pitch] = sum;
+		}
 	}
 }
 
@@ -899,7 +929,7 @@ slicing_colsConvolutionCUDA(float *d_Dst_start, float *d_Src_start, int imageW, 
 
 __global__ void
 SMT_colsConvolutionCUDA(float *d_Dst_p, float *d_Src_p, int imageW, int imageH, int pitch,
-					int gridDimX,
+					int gridDimX, int gridDimY,
 					int SIMD_min, int SIMD_max,
 					int num_subtask, int iter_per_subtask, int *cont_subtask, State *status)
 {
@@ -932,14 +962,17 @@ SMT_colsConvolutionCUDA(float *d_Dst_p, float *d_Src_p, int imageW, int imageH, 
 			return;
 		}
 		
+		int bid = s_bid % ((gridDimX * gridDimY) / iter_per_subtask);
+		
 		for(int iter = 0; iter < iter_per_subtask; iter++){
 			float *d_Src, *d_Dst;
 			
-			int row = (s_bid * iter_per_subtask + iter ) / gridDimX;
-			int col = (s_bid * iter_per_subtask + iter ) - col * gridDimX;  
-			
+			int row = (bid * iter_per_subtask + iter ) % gridDimX;
+			int col = (bid * iter_per_subtask + iter ) / gridDimX;    
+				
+			//Offset to the upper halo edge
 			const int baseX = col * COLUMNS_BLOCKDIM_X + threadIdx.x;
-			const int baseY = (row * COLUMNS_RESULT_STEPS - COLUMNS_HALO_STEPS) * COLUMNS_BLOCKDIM_Y + threadIdx.y;	
+			const int baseY = (row * COLUMNS_RESULT_STEPS - COLUMNS_HALO_STEPS) * COLUMNS_BLOCKDIM_Y + threadIdx.y;
 
 			//Offset to the upper halo edge
 			// const int baseX = blockIdx.x * COLUMNS_BLOCKDIM_X + threadIdx.x;
@@ -1153,7 +1186,8 @@ memaddr_SMT_colsConvolutionCUDA(float *d_Dst_p, float *d_Src_p, int imageW, int 
 
 
 __global__ void
-SMK_colsConvolutionCUDA(float *d_Dst, float *d_Src, int imageW, int imageH, int pitch,
+SMK_colsConvolutionCUDA(float *d_Dst_p, float *d_Src_p, int imageW, int imageH, int pitch,
+					int gridDimX,
 					int gridDimY,
 					int max_blocks_per_SM,
 					int num_subtask,
@@ -1163,6 +1197,7 @@ SMK_colsConvolutionCUDA(float *d_Dst, float *d_Src, int imageW, int imageH, int 
 					State *status
 )
 {
+	__shared__ float s_Data[COLUMNS_BLOCKDIM_X][(COLUMNS_RESULT_STEPS + 2 * COLUMNS_HALO_STEPS) * COLUMNS_BLOCKDIM_Y + 1];
 	__shared__ int s_bid, s_index;
 	
 	unsigned int SM_id = get_smid_CONV();
@@ -1175,8 +1210,8 @@ SMK_colsConvolutionCUDA(float *d_Dst, float *d_Src, int imageW, int imageH, int 
 	if (s_index > max_blocks_per_SM)
 		return;
 		
-	float *o_Src = d_Src;
-	float *o_Dst = d_Dst;
+	// float *o_Src = d_Src;
+	// float *o_Dst = d_Dst;
 	
 	while (1){
 		
@@ -1193,19 +1228,26 @@ SMK_colsConvolutionCUDA(float *d_Dst, float *d_Src, int imageW, int imageH, int 
 		if (s_bid >= num_subtask || s_bid == -1) /* If all subtasks have been executed */
 			return;
 			
-		for(int iter = 0; iter < iter_per_subtask; iter++){
-			d_Src = o_Src;
-			d_Dst = o_Dst;
+		int bid = s_bid % ((gridDimX * gridDimY) / iter_per_subtask);
 		
-			__shared__ float s_Data[COLUMNS_BLOCKDIM_X][(COLUMNS_RESULT_STEPS + 2 * COLUMNS_HALO_STEPS) * COLUMNS_BLOCKDIM_Y + 1];
+		for(int iter = 0; iter < iter_per_subtask; iter++){
+			float *d_Src, *d_Dst;
+			
+			int row = (bid * iter_per_subtask + iter ) % gridDimX;
+			int col = (bid * iter_per_subtask + iter ) / gridDimX;    
+				
+			//Offset to the upper halo edge
+			const int baseX = col * COLUMNS_BLOCKDIM_X + threadIdx.x;
+			const int baseY = (row * COLUMNS_RESULT_STEPS - COLUMNS_HALO_STEPS) * COLUMNS_BLOCKDIM_Y + threadIdx.y;
 
 			//Offset to the upper halo edge
 			// const int baseX = blockIdx.x * COLUMNS_BLOCKDIM_X + threadIdx.x;
 			// const int baseY = (blockIdx.y * COLUMNS_RESULT_STEPS - COLUMNS_HALO_STEPS) * COLUMNS_BLOCKDIM_Y + threadIdx.y;
-			const int baseX = (s_bid / gridDimY) * COLUMNS_BLOCKDIM_X + threadIdx.x;
-			const int baseY = ((s_bid % gridDimY) * COLUMNS_RESULT_STEPS - COLUMNS_HALO_STEPS) * COLUMNS_BLOCKDIM_Y + threadIdx.y;
-			d_Src += baseY * pitch + baseX;
-			d_Dst += baseY * pitch + baseX;
+			//const int baseX = ((s_bid + iter * blockDim.x) / gridDimY) * COLUMNS_BLOCKDIM_X + threadIdx.x;
+			//const int baseY = (((s_bid + iter * blockDim.x) - ((s_bid / gridDimY) * gridDimY)) * COLUMNS_RESULT_STEPS - COLUMNS_HALO_STEPS) * COLUMNS_BLOCKDIM_Y + threadIdx.y;
+			
+			d_Src = d_Src_p + baseY * pitch + baseX;
+			d_Dst = d_Dst_p + baseY * pitch + baseX;	
 
 			//Main data
 			#pragma unroll
@@ -1261,7 +1303,8 @@ int launch_orig_CCONV(void *arg)
     dim3 threads(kstub->kconf.blocksize.x, kstub->kconf.blocksize.y);
 	
 	original_colsConvolutionCUDA<<<blocks, threads>>>(
-		params->d_Output, params->d_Buffer, imageW, imageH, imageW);
+		params->d_Output, params->d_Buffer, imageW, imageH, imageW,
+		kstub->kconf.gridsize.x, kstub->kconf.gridsize.y, kstub->kconf.coarsening);
 
 	return 0;
 }
@@ -1297,6 +1340,7 @@ int launch_preemp_CCONV(void *arg)
 			params->d_Output, params->d_Buffer, imageW, imageH, imageW,
 			
 			kstub->kconf.gridsize.x,
+			kstub->kconf.gridsize.y,
 			
 			kstub->idSMs[0],
 			kstub->idSMs[1],
@@ -1322,6 +1366,7 @@ int launch_preemp_CCONV(void *arg)
 			params->d_Output, params->d_Buffer, imageW, imageH, imageW,
 			
 			kstub->kconf.gridsize.x,
+			kstub->kconf.gridsize.y,
 			
 			kstub->num_blocks_per_SM,
 			kstub->total_tasks,

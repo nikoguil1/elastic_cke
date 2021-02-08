@@ -752,22 +752,20 @@ cudaOccupancyMaxActiveBlocksPerMultiprocessor( &maxBlocksPerMulti,
 					else{
 
 						if (strcmp(device_name, "TITAN V") == 0) {
-							k_stub->kconf.coarsening = 16;
-							CONV_params->conv_rows=3072;
-							CONV_params->conv_cols=3072 * k_stub->kconf.coarsening;
-							k_stub->kconf.coarsening = 3;
+							CONV_params->conv_rows=4096;
+							CONV_params->conv_cols=4096;
+							k_stub->kconf.coarsening = 51;
 							k_stub->kconf.numSMs = 80;
 							k_stub->kconf.blocksize.x = 16;
 							k_stub->kconf.blocksize.y = 4;
 cudaOccupancyMaxActiveBlocksPerMultiprocessor( &maxBlocksPerMulti,
 											   original_rowsConvolutionCUDA,
 											   k_stub->kconf.blocksize.x,
-											   2560);
+											   0);
 							k_stub->kconf.max_persistent_blocks = maxBlocksPerMulti;
-							//printf("k_stub->kconf.max_persistent_blocks: %d\n", k_stub->kconf.max_persistent_blocks);
-							k_stub->kconf.gridsize.x = CONV_params->conv_cols / (8 * k_stub->kconf.blocksize.x * k_stub->kconf.coarsening );
+							k_stub->kconf.gridsize.x = CONV_params->conv_cols / (8 * k_stub->kconf.blocksize.x);// * k_stub->kconf.coarsening );
 							k_stub->kconf.gridsize.y = CONV_params->conv_rows / k_stub->kconf.blocksize.y;
-							k_stub->total_tasks = (k_stub->kconf.gridsize.x * k_stub->kconf.gridsize.y)/k_stub->kconf.coarsening;
+							k_stub->total_tasks = (k_stub->kconf.gridsize.x * k_stub->kconf.gridsize.y);// /k_stub->kconf.coarsening;
 							CONV_params->gridDimX[0] = k_stub->kconf.gridsize.x;
 							CONV_params->gridDimY[0] = k_stub->kconf.gridsize.y;
 
@@ -863,12 +861,12 @@ cudaOccupancyMaxActiveBlocksPerMultiprocessor( &maxBlocksPerMulti,
 								k_stub->kconf.max_persistent_blocks = 16;
 							else
 								k_stub->kconf.max_persistent_blocks = maxBlocksPerMulti;
-							k_stub->kconf.coarsening = 8; 
-							k_stub->kconf.gridsize.x = CONV_params->conv_cols / (8 * k_stub->kconf.blocksize.x * k_stub->kconf.coarsening);
+							k_stub->kconf.coarsening = 7;  
+							k_stub->kconf.gridsize.x = CONV_params->conv_cols / (8 * k_stub->kconf.blocksize.x);// * k_stub->kconf.coarsening);
 							k_stub->kconf.gridsize.y = CONV_params->conv_rows / k_stub->kconf.blocksize.y;
 							k_stub->total_tasks = k_stub->kconf.gridsize.x * k_stub->kconf.gridsize.y;
 							CONV_params->gridDimX[1] = k_stub->kconf.gridsize.x;
-							CONV_params->gridDimY[1] = k_stub->kconf.gridsize.y ;
+							CONV_params->gridDimY[1] = k_stub->kconf.gridsize.y;
 
 							// size_t memReq = 3*CONV_params->conv_rows*CONV_params->conv_cols*sizeof(float);
 //							printf("CCONV: SMs %d, MaxBlocks %d, Mem %zu (max %zu aval %zu - %zu)\n", numSMs, maxBlocksPerMulti, memReq/1048576, totalMem/1048576, freeMem/1048576, (freeMem-memReq)/1048576);				
@@ -1564,18 +1562,18 @@ int create_stubinfo_with_params(t_kernel_stub **stub, int deviceId, t_Kernel id,
 cudaOccupancyMaxActiveBlocksPerMultiprocessor( &maxBlocksPerMulti,
 											   original_colsConvolutionCUDA,
 											   k_stub->kconf.blocksize.x,
-											   5184);
+											   0);
 							if ( maxBlocksPerMulti > 16 )
 								k_stub->kconf.max_persistent_blocks = 16;
 							else
 								k_stub->kconf.max_persistent_blocks = maxBlocksPerMulti;
 //							printf("CCONV: SMs %d, MaxBlocks %d\n", numSMs, maxBlocksPerMulti);
-						k_stub->kconf.coarsening = 1; 
-						k_stub->kconf.gridsize.x = CONV_params->conv_cols / (k_stub->kconf.blocksize.x);
-						k_stub->kconf.gridsize.y = CONV_params->conv_rows / ( 8 * k_stub->kconf.blocksize.y) ;
-						k_stub->total_tasks = k_stub->kconf.gridsize.x * k_stub->kconf.gridsize.y / k_stub->kconf.coarsening;
-						CONV_params->gridDimX[1] = k_stub->kconf.gridsize.x;
-						CONV_params->gridDimY[1] = k_stub->kconf.gridsize.y ;
+							k_stub->kconf.coarsening = 7; 
+							k_stub->kconf.gridsize.x = CONV_params->conv_cols / (k_stub->kconf.blocksize.x);
+							k_stub->kconf.gridsize.y = CONV_params->conv_rows / ( 8 * k_stub->kconf.blocksize.y) ;
+							k_stub->total_tasks = k_stub->kconf.gridsize.x * k_stub->kconf.gridsize.y;// / k_stub->kconf.coarsening;
+							CONV_params->gridDimX[1] = k_stub->kconf.gridsize.x;
+							CONV_params->gridDimY[1] = k_stub->kconf.gridsize.y ;
 						}
 						else{
 							printf("Error: Unknown device\n");
