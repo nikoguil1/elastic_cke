@@ -805,7 +805,7 @@ int main(int argc, char **argv)
  */
 
 	//kid[0]=VA;
-	kid[0]=RCONV;
+	kid[0]=VA;
 	kid[1]=MM;
 	kid[2]=BS;
 	kid[3]=Reduction;
@@ -823,7 +823,7 @@ int main(int argc, char **argv)
 	// return 0;
 
 	//online_profiler_overhead(kid, 7/*num_kernels*/, 2); // SPMV y RCONV dan problemas por 
-	all_profiling(kid, 1/*num_kernels*/, deviceId);
+	all_profiling(kid, 9/*num_kernels*/, deviceId);
 
 	
 	//smk_check_CTA_allocation(kid, 2, 2);

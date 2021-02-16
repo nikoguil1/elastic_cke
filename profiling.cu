@@ -221,8 +221,10 @@ int smt_coexec_prof(t_kernel_stub **kstub)
 	int flag = -1;
 	
 	int num_configs = info_tpmsSMT[kstub[0]->id][kstub[1]->id].num_configs;
+	
+	double ProfilingTimeThreshold = 10.0;
 		
-	for (int i = 0; i<num_configs; i++) {
+	for (int i = 9; i<num_configs; i += 10) {
 		
 		idSMs[0][0]=0;		idSMs[0][1]=i;
 		idSMs[1][0]=i+1;	idSMs[1][1]=num_configs;
@@ -232,39 +234,92 @@ int smt_coexec_prof(t_kernel_stub **kstub)
 		kstub[0]->kconf.max_persistent_blocks = smk_info_solo[kstub[0]->id].num_configs; //Maz number of blocks per SM
 		kstub[1]->kconf.max_persistent_blocks = smk_info_solo[kstub[1]->id].num_configs;
 
-		(kstub[0]->launchCKEkernel)(kstub[0]);
-		(kstub[1]->launchCKEkernel)(kstub[1]);
+		double elapsed_time = 0.0;
+		unsigned long int numLaunchsKernel[2] = {0, 0};
 		
 		clock_gettime(CLOCK_REALTIME, &now);
 		double time1 = (double)now.tv_sec+(double)now.tv_nsec*1e-9;
-
-		while (1) { // Wait until fastest kernel finishes 
-			
-			if (cudaStreamQuery(*kstub[0]->execution_s) == cudaSuccess) {
-				flag = 0;
-				break;
-			}
+		double time2;
+		
+		long int exec_tasks[2] = {0, 0};
+		
+		while(elapsed_time < ProfilingTimeThreshold){
+			if(numLaunchsKernel[0] == 0 && numLaunchsKernel[1] == 0){
+				cudaMemcpyAsync(kstub[0]->d_executed_tasks, &exec_tasks[0], sizeof(int), cudaMemcpyHostToDevice, *kstub[0]->preemp_s); // Reset task counter
+				cudaMemcpyAsync(kstub[1]->d_executed_tasks, &exec_tasks[1], sizeof(int), cudaMemcpyHostToDevice, *kstub[1]->preemp_s);
 				
-			if (cudaStreamQuery(*kstub[1]->execution_s) == cudaSuccess) {
-				flag = 1;
-				break;
+				(kstub[0]->launchCKEkernel)(kstub[0]);
+				(kstub[1]->launchCKEkernel)(kstub[1]);
+				
+				numLaunchsKernel[0]++;
+				numLaunchsKernel[1]++;
 			}
 			
+			if (cudaStreamQuery(*kstub[0]->execution_s) == cudaSuccess){				
+				cudaMemcpyAsync(kstub[0]->d_executed_tasks, &exec_tasks[0], sizeof(int), cudaMemcpyHostToDevice, *kstub[0]->preemp_s); // Reset task counter
+				
+				(kstub[0]->launchCKEkernel)(kstub[0]);
+				
+				numLaunchsKernel[0]++;
+			}
+			
+			if (cudaStreamQuery(*kstub[1]->execution_s) == cudaSuccess){
+				cudaMemcpyAsync(kstub[1]->d_executed_tasks, &exec_tasks[1], sizeof(int), cudaMemcpyHostToDevice, *kstub[1]->preemp_s);
+				
+				(kstub[1]->launchCKEkernel)(kstub[1]);
+				
+				numLaunchsKernel[1]++;
+			}
+			
+			clock_gettime(CLOCK_REALTIME, &now);
+			time2 = (double)now.tv_sec+(double)now.tv_nsec*1e-9;
+			
+			elapsed_time = time2 - time1;
 		}
+		
+		// printf("Veces ejecutadas kernel 0: %lu\n", numLaunchsKernel[0]);
+		// printf("Veces ejecutadas kernel 1: %lu\n", numLaunchsKernel[1]);
+		
+		cudaMemcpyAsync(&exec_tasks[0], kstub[0]->d_executed_tasks, sizeof(int), cudaMemcpyDeviceToHost, *kstub[0]->preemp_s);
+		cudaMemcpyAsync(&exec_tasks[1], kstub[1]->d_executed_tasks, sizeof(int), cudaMemcpyDeviceToHost, *kstub[1]->preemp_s);
+		
+		// printf("Tareas ejecutadas última ejecución kernel 0: %ld\n", exec_tasks[0]);
+		// printf("Tareas ejecutadas última ejecución kernel 1: %ld\n", exec_tasks[1]);
+		
+		exec_tasks[0] += kstub[0]->total_tasks * (numLaunchsKernel[0] - 1);
+		exec_tasks[1] += kstub[1]->total_tasks * (numLaunchsKernel[1] - 1);
+		
+		// printf("Tareas ejecutadas kernel 0: %d\n", exec_tasks[0]);
+		// printf("Tareas ejecutadas kernel 1: %d\n", exec_tasks[1]);
+		
+		// printf("TIME: %d\n", elapsed_time);
+		// printf("TASKS EXECUTED 0: %d\n", exec_tasks[0]);
+		// printf("TASKS EXECUTED 1: %d\n", exec_tasks[1]);
 
-		clock_gettime(CLOCK_REALTIME, &now);
-		double time2 = (double)now.tv_sec+(double)now.tv_nsec*1e-9;
+		// while (1) { // Wait until fastest kernel finishes 
+			
+			// if (cudaStreamQuery(*kstub[0]->execution_s) == cudaSuccess) {
+				// flag = 0;
+				// break;
+			// }
+				
+			// if (cudaStreamQuery(*kstub[1]->execution_s) == cudaSuccess) {
+				// flag = 1;
+				// break;
+			// }
+			
+		// }
 		
 		// Get number of executed tasks
-		int exec_tasks[2];
-		if (flag == 0) { 
-			cudaMemcpyAsync(&exec_tasks[1], kstub[1]->d_executed_tasks, sizeof(int), cudaMemcpyDeviceToHost, *kstub[1]->preemp_s);
-			exec_tasks[0] = kstub[0]->total_tasks;
-		}
-		else {
-			cudaMemcpyAsync(&exec_tasks[0], kstub[0]->d_executed_tasks, sizeof(int), cudaMemcpyDeviceToHost, *kstub[0]->preemp_s);
-			exec_tasks[1] = kstub[1]->total_tasks;
-		}
+		// int exec_tasks[2];
+		// if (flag == 0) { 
+			// cudaMemcpyAsync(&exec_tasks[1], kstub[1]->d_executed_tasks, sizeof(int), cudaMemcpyDeviceToHost, *kstub[1]->preemp_s);
+			// exec_tasks[0] = kstub[0]->total_tasks;
+		// }
+		// else {
+			// cudaMemcpyAsync(&exec_tasks[0], kstub[0]->d_executed_tasks, sizeof(int), cudaMemcpyDeviceToHost, *kstub[0]->preemp_s);
+			// exec_tasks[1] = kstub[1]->total_tasks;
+		// }
 		
 		info_tpmsSMT[kstub[0]->id][kstub[1]->id].pairs[i][0]=i+1;
 		info_tpmsSMT[kstub[0]->id][kstub[1]->id].pairs[i][1]= info_tpmsSMT[kstub[0]->id][kstub[1]->id].num_configs-i;
@@ -282,12 +337,12 @@ int smt_coexec_prof(t_kernel_stub **kstub)
 		
 		cudaDeviceSynchronize();
 		
-		exec_tasks[0]=0;
-		exec_tasks[1]=0;
-		cudaMemcpyAsync(kstub[0]->d_executed_tasks, &exec_tasks[0], sizeof(int), cudaMemcpyHostToDevice, *kstub[0]->preemp_s); // Reset task counter
-		cudaMemcpyAsync(kstub[1]->d_executed_tasks, &exec_tasks[1], sizeof(int), cudaMemcpyHostToDevice, *kstub[0]->preemp_s);
+		// exec_tasks[0]=0;
+		// exec_tasks[1]=0;
+		// cudaMemcpyAsync(kstub[0]->d_executed_tasks, &exec_tasks[0], sizeof(int), cudaMemcpyHostToDevice, *kstub[0]->preemp_s); // Reset task counter
+		// cudaMemcpyAsync(kstub[1]->d_executed_tasks, &exec_tasks[1], sizeof(int), cudaMemcpyHostToDevice, *kstub[0]->preemp_s);
 		
-		cudaDeviceSynchronize();
+		// cudaDeviceSynchronize();
 
 	}
 	
@@ -586,19 +641,22 @@ int all_profiling(t_Kernel *kid, int num_kernels, int deviceId)
 	double *exectime_s = (double *)calloc(total_num_kernels, sizeof(double));
 	for (int i=0; i<total_num_kernels; i++) // Important: is an application has several kernels, they must executed in order (data dependecies)
 		solo_original(kstubs[i], &exectime_s[i]);
+		
+	char kname[50];
 	
+	/*
 	// Solo SMK profiling and annoate results in smk_smk_info_solo table
 	for (int i=0; i<total_num_kernels; i++)
 		smk_solo_prof(kstubs[i]);
 	
 	printf("Overhead SMK wrt original\n");
-	char kname[50];
 	for (int i=0; i<total_num_kernels; i++) {
 		t_smk_solo *info = &smk_info_solo[kstubs[i]->id];
 		double smk_time = (double)kstubs[i]->total_tasks / info->tpms[info->num_configs-1] / 1000.0 ;
 		kid_from_index(kstubs[i]->id, kname);
 		printf("kid=%s Ori=%f SMK=%f Over=%f\n", kname, exectime_s[i], smk_time, smk_time/exectime_s[i]);
-	}
+	} 
+	*/
 	
 	// Solo SMT profiling
 	for (int i=0; i<total_num_kernels; i++)
@@ -614,7 +672,8 @@ int all_profiling(t_Kernel *kid, int num_kernels, int deviceId)
 	
 	// Coexecution profiling
 	t_kernel_stub *pair_kstubs[2];
-	// Coexecute all tasls and extract performance
+	// Coexecute all tasks and extract performance
+	/*
 	for (int i=0; i<total_num_kernels; i++) {
 		for (int j=i+1; j<total_num_kernels; j++) {
 			pair_kstubs[0] = kstubs[i];
@@ -623,6 +682,7 @@ int all_profiling(t_Kernel *kid, int num_kernels, int deviceId)
 			smk_coexec_prof(pair_kstubs);
 		}
 	}
+	*/
 	
 	for (int i=0; i<total_num_kernels; i++) {
 		for (int j=i+1; j<total_num_kernels; j++) {
@@ -635,7 +695,9 @@ int all_profiling(t_Kernel *kid, int num_kernels, int deviceId)
 	char skid0[20];
 	char skid1[20];
 	
+	
 	/* SMK: Extract better speedup */
+	/*
 	printf("**************** SMK Experiment *************\n"); 
 	printf("Kernels \tBlocks_co	\tBlocks_solo \tBlocks_ibc \tBlocks_fair \tSpeedup_colo \tSpeedup_th \tSpeedup_real \tSpeedup_inc \tSpeedup_fair \tMin_speedup\n"); 
 	double *sp_smk = (double *)calloc(100, sizeof(double));
@@ -727,6 +789,7 @@ int all_profiling(t_Kernel *kid, int num_kernels, int deviceId)
 	}
 	
 	free(sp_smk);
+	*/
 					
 	/* SMT: Extract better speedup */
 	printf("\n**************** SMT Experiment *************\n"); 
